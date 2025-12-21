@@ -1,0 +1,17 @@
+<div class="d-flex gap-2 mb-4">
+    <input type="text" class="form-control journal-search-input" placeholder="Search Journals" 
+           @bind="SearchText" @bind:event="oninput" style="flex: 1;" />
+    <div class="action-buttons">
+        <button class="journal-btn">Search</button>
+        <button class="journal-btn">Filter</button>
+        <button class="journal-btn">Calendar</button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string SearchText { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> SearchTextChanged { get; set; }
+}

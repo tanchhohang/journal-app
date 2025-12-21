@@ -1,0 +1,81 @@
+@using journalApp.Models
+
+<div class="col-xl-4 col-lg-4 col-md-6">
+    <div class="card journal-card h-100">
+        <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="flex-grow-1 me-3">
+                    <h5 class="journal-title">@Entry.Title</h5>
+                    <small class="journal-date">@Entry.Date.ToString("dd MMMM, yyyy")</small>
+                </div>
+                <div class="d-flex flex-column align-items-end gap-2">
+                    <span class="@GetMoodBadgeClass(Entry.Mood)">
+                        @GetMoodCategory(Entry.Mood)
+                    </span>
+                    <span class="secondary-mood-badge">@Entry.Mood</span>
+                </div>
+            </div>
+
+            <div class="journal-body flex-grow-1 mb-3">
+                @((MarkupString)FormatContent(Entry.Content))
+            </div>
+
+            <div class="d-flex justify-content-between gap-3 pt-3">
+                <div class="d-flex justify-content-between gap-3 pt-3">
+                    @foreach (var tag in Entry.Tags)
+                    {
+                        <span class="tag-badge">@tag</span>
+                    }
+                </div>
+                <div class="d-flex justify-content-end gap-3 pt-3">
+                    <button class="btn btn-sm btn-link text-muted text-decoration-none p-0">Export</button>
+                    <button class="btn btn-sm btn-link text-muted text-decoration-none p-0" 
+                            @onclick="() => OnEdit.InvokeAsync(Entry)">Edit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Entry Entry { get; set; } = new Entry();
+
+    [Parameter]
+    public EventCallback<Entry> OnEdit { get; set; }
+
+    private string GetMoodCategory(string mood)
+    {
+        var positive = new[] { "Happy", "Excited", "Relaxed", "Grateful", "Confident" };
+        var neutral = new[] { "Calm", "Thoughtful", "Curious", "Nostalgic", "Bored" };
+        var negative = new[] { "Sad", "Angry", "Stressed", "Lonely", "Anxious" };
+
+        if (positive.Contains(mood)) return "Positive";
+        if (neutral.Contains(mood)) return "Neutral";
+        if (negative.Contains(mood)) return "Negative";
+        return "Neutral";
+    }
+
+    private string GetMoodBadgeClass(string mood)
+    {
+        var category = GetMoodCategory(mood);
+        return category switch
+        {
+            "Positive" => "Positive",
+            "Negative" => "Negative",
+            _ => "Neutral"
+        };
+    }
+
+    private string FormatContent(string content)
+    {
+        if (string.IsNullOrEmpty(content)) return content;
+
+        var formatted = content;
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"\*\*(.*?)\*\*", "<strong>$1</strong>");
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"\*(.*?)\*", "<em>$1</em>");
+        formatted = formatted.Replace("\n", "<br/>");
+
+        return formatted;
+    }
+}

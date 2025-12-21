@@ -1,0 +1,70 @@
+@using journalApp.Models
+
+<div class="modal">
+    <div class="form-container">
+        <div class="form-header">
+            <h2>@(Entry.Id == 0 ? "New Entry" : "Edit Entry")</h2>
+            <p class="date">@DateTime.Now.ToString("dd MMMM, yyyy")</p>
+        </div>
+
+        <div class="form-body">
+            <div class="field">
+                <label>Title</label>
+                <input type="text" @bind="Entry.Title" placeholder="Entry title..." />
+            </div>
+
+            <div class="field">
+                <label>Mood</label>
+                <select @bind="Entry.Mood">
+                    <option value="positive">Positive (Happy, Excited, Grateful)</option>
+                    <option value="neutral">Neutral (Calm, Thoughtful, Bored)</option>
+                    <option value="negative">Negative (Sad, Stressed, Anxious)</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Tags (comma separated)</label>
+                <input type="text" @bind="tagsInput" placeholder="Work, Health, Travel..." />
+            </div>
+
+            <div class="field">
+                <label>Content</label>
+                <textarea @bind="Entry.Content" placeholder="Write your journal entry..." rows="10"></textarea>
+                <div class="toolbar">
+                    <button type="button">B</button>
+                    <button type="button">I</button>
+                    <button type="button">List</button>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn-primary" @onclick="SaveEntry">Save Entry</button>
+                <button class="btn-secondary" @onclick="OnClose">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Entry Entry { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string tagsInput = "";
+
+    protected override void OnParametersSet()
+    {
+        if (Entry?.Tags != null)
+        {
+            tagsInput = string.Join(", ", Entry.Tags);
+        }
+    }
+
+    private void SaveEntry()
+    {
+        if (!string.IsNullOrWhiteSpace(tagsInput))
+        {
+            Entry.Tags = tagsInput.Split(',').Select(t => t.Trim()).ToList();
+        }
+        OnClose.InvokeAsync();
+    }
+}

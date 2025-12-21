@@ -1,0 +1,119 @@
+@using journalApp.Models
+
+@using journalApp.Models
+
+@if (ShowForm)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content px-3">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">@(IsNewEntry ? "Log Today's Journal" : "Edit Journal")</h5>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="OnClose"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" @bind="CurrentEntry.Title" placeholder="Entry title..." />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Mood</label>
+                        <select class="form-select" @bind="CurrentEntry.Mood">
+                            <optgroup label="Positive">
+                                <option value="Happy">Happy</option>
+                                <option value="Excited">Excited</option>
+                                <option value="Relaxed">Relaxed</option>
+                                <option value="Grateful">Grateful</option>
+                                <option value="Confident">Confident</option>
+                            </optgroup>
+                            <optgroup label="Neutral">
+                                <option value="Calm">Calm</option>
+                                <option value="Thoughtful">Thoughtful</option>
+                                <option value="Curious">Curious</option>
+                                <option value="Nostalgic">Nostalgic</option>
+                                <option value="Bored">Bored</option>
+                            </optgroup>
+                            <optgroup label="Negative">
+                                <option value="Sad">Sad</option>
+                                <option value="Angry">Angry</option>
+                                <option value="Stressed">Stressed</option>
+                                <option value="Lonely">Lonely</option>
+                                <option value="Anxious">Anxious</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <input type="text" class="form-control" 
+                               value="@TagsText"
+                               @onchange="@((e) => OnTagsTextChanged.InvokeAsync(e.Value?.ToString() ?? ""))"
+                               placeholder="Work, Health, Travel..." />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Content</label>
+                        <textarea class="form-control" rows="10" @bind="CurrentEntry.Content" 
+                                  placeholder="Write your journal entry..."></textarea>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="InsertBold">
+                                <strong>Bold</strong>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" @onclick="InsertItalic">
+                                <em>Italic</em>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" @onclick="InsertBullet">
+                                List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OnClose">Cancel</button>
+                    <button type="button" class="btn btn-dark" @onclick="OnSave">Save Entry</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool ShowForm { get; set; }
+
+    [Parameter]
+    public bool IsNewEntry { get; set; }
+
+    [Parameter]
+    public Entry CurrentEntry { get; set; } = new Entry();
+
+    [Parameter]
+    public string TagsText { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> OnTagsTextChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private void InsertBold()
+    {
+        CurrentEntry.Content += "**bold text**";
+    }
+
+    private void InsertItalic()
+    {
+        CurrentEntry.Content += "*italic text*";
+    }
+
+    private void InsertBullet()
+    {
+        CurrentEntry.Content += "\n- ";
+    }
+}

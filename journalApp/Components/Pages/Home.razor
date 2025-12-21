@@ -1,0 +1,115 @@
+﻿@page "/"
+
+<div class="page-wrapper">
+<div class="main-content">
+    <PageHeader />
+
+    <hr style="border-color: #8B898C;" />
+
+    <SearchBar SearchText="@searchText" SearchTextChanged="@((value) => searchText = value)" />
+
+    <div class="row g-4">
+        <AddJournalCard OnClick="ShowNewEntryForm" />
+
+        @foreach (var entry in entries)
+        {
+            <JournalCard Entry="entry" OnEdit="EditEntry" />
+        }
+    </div>
+
+    <div class="text-center mt-4">
+        <button class="btn btn-link text-muted text-decoration-none">Go Next ></button>
+    </div>
+</div>
+</div>
+
+<EntryFormModal 
+    ShowForm="showForm"
+    IsNewEntry="isNewEntry"
+    CurrentEntry="currentEntry"
+    TagsText="@tagsText"
+    OnTagsTextChanged="(value) => tagsText = value"
+    OnSave="SaveEntry"
+    OnClose="CloseForm" />
+
+@code {
+    private List<Entry> entries = new List<Entry>();
+    private bool showForm = false;
+    private Entry currentEntry = new Entry();
+    private bool isNewEntry = true;
+    private string tagsText = "";
+    private string searchText = "";
+
+    protected override void OnInitialized()
+    {
+        entries.Add(new Entry
+        {
+            Id = 1,
+            Title = "Rich Text Title Positive",
+            Date = DateTime.Parse("2025-12-19"),
+            Mood = "Happy",
+            Content = "Lorem ipsum dolor sit amet, **consectetur adipiscing** elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, *quis nostrud* exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+            Tags = new List<string> { "Work", "Health" }
+        });
+        
+        entries.Add(new Entry
+        {
+            Id = 2,
+            Title = "Rich Text Title Negative",
+            Date = DateTime.Parse("2025-12-19"),
+            Mood = "Stressed",
+            Content = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            Tags = new List<string> { "Personal" }
+        });
+    }
+
+    private void ShowNewEntryForm()
+    {
+        isNewEntry = true;
+        currentEntry = new Entry { Date = DateTime.Now, Mood = "Happy" };
+        tagsText = "";
+        showForm = true;
+    }
+
+    private void EditEntry(Entry entry)
+    {
+        isNewEntry = false;
+        currentEntry = new Entry
+        {
+            Id = entry.Id,
+            Title = entry.Title,
+            Date = entry.Date,
+            Mood = entry.Mood,
+            Content = entry.Content,
+            Tags = new List<string>(entry.Tags)
+        };
+        tagsText = string.Join(", ", entry.Tags);
+        showForm = true;
+    }
+
+    private void SaveEntry()
+    {
+        if (!string.IsNullOrWhiteSpace(tagsText))
+        {
+            currentEntry.Tags = tagsText.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+        }
+
+        if (isNewEntry)
+        {
+            currentEntry.Id = entries.Any() ? entries.Max(e => e.Id) + 1 : 1;
+            entries.Add(currentEntry);
+        }
+        else
+        {
+            var index = entries.FindIndex(e => e.Id == currentEntry.Id);
+            if (index >= 0) entries[index] = currentEntry;
+        }
+
+        CloseForm();
+    }
+
+    private void CloseForm()
+    {
+        showForm = false;
+    }
+}
