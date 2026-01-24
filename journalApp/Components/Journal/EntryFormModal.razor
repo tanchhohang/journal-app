@@ -1,6 +1,5 @@
 @using journalApp.Models
-
-@using journalApp.Models
+@inject IJSRuntime JS
 
 @if (ShowForm)
 {
@@ -10,8 +9,9 @@
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title">@(IsNewEntry ? "Log Today's Journal" : "Edit Journal")</h5>
+                        <small class="text-muted">@CurrentEntry.Date.ToString("dd MMMM, yyyy")</small>
                     </div>
-                    <button type="button" class="btn-close" @onclick="OnClose"></button>
+                    <button type="button" class="btn-close" @onclick="HandleClose"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
@@ -50,30 +50,18 @@
                         <label class="form-label">Tags</label>
                         <input type="text" class="form-control" 
                                value="@TagsText"
-                               @onchange="@((e) => OnTagsTextChanged.InvokeAsync(e.Value?.ToString() ?? ""))"
+                               @oninput="@((e) => OnTagsTextChanged.InvokeAsync(e.Value?.ToString() ?? ""))"
                                placeholder="Work, Health, Travel..." />
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Content</label>
-                        <textarea class="form-control" rows="10" @bind="CurrentEntry.Content" 
-                                  placeholder="Write your journal entry..."></textarea>
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="InsertBold">
-                                <strong>Bold</strong>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" @onclick="InsertItalic">
-                                <em>Italic</em>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" @onclick="InsertBullet">
-                                List
-                            </button>
-                        </div>
+                        <div id="quill-editor" style="height: 300px;"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="OnClose">Cancel</button>
-                    <button type="button" class="btn btn-dark" @onclick="OnSave">Save Entry</button>
+                    <button type="button" class="btn btn-secondary" @onclick="HandleClose">Cancel</button>
+                    <button type="button" class="btn btn-dark" @onclick="SaveWithQuillContent">Save Entry</button>
                 </div>
             </div>
         </div>
@@ -102,18 +90,65 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private void InsertBold()
+    private bool previousShowForm = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        CurrentEntry.Content += "**bold text**";
+        // Initialize Quill when form is shown
+        if (ShowForm && !previousShowForm)
+        {
+            await Task.Delay(100); // Give the DOM time to render
+            await InitializeQuill();
+            previousShowForm = true;
+        }
+        else if (!ShowForm && previousShowForm)
+        {
+            await DestroyQuill();
+            previousShowForm = false;
+        }
     }
 
-    private void InsertItalic()
+    private async Task InitializeQuill()
     {
-        CurrentEntry.Content += "*italic text*";
+        try
+        {
+            await JS.InvokeVoidAsync("initQuillEditor", CurrentEntry.Content ?? "");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing Quill: {ex.Message}");
+        }
     }
 
-    private void InsertBullet()
+    private async Task DestroyQuill()
     {
-        CurrentEntry.Content += "\n- ";
+        try
+        {
+            await JS.InvokeVoidAsync("destroyQuillEditor");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error destroying Quill: {ex.Message}");
+        }
+    }
+
+    private async Task SaveWithQuillContent()
+    {
+        try
+        {
+            var content = await JS.InvokeAsync<string>("getQuillContent");
+            CurrentEntry.Content = content;
+            await OnSave.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving: {ex.Message}");
+        }
+    }
+
+    private async Task HandleClose()
+    {
+        await DestroyQuill();
+        await OnClose.InvokeAsync();
     }
 }

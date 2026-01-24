@@ -1,70 +1,266 @@
+@page "/journal"
 @using journalApp.Models
+@using journalApp.Services
+@using journalApp.Components.Journal
+@inject IEntryService EntryService
+@inject IJSRuntime JS
 
-<div class="modal">
-    <div class="form-container">
-        <div class="form-header">
-            <h2>@(Entry.Id == 0 ? "New Entry" : "Edit Entry")</h2>
-            <p class="date">@DateTime.Now.ToString("dd MMMM, yyyy")</p>
+<div class="container-fluid py-4">
+    <!-- Header with Streak Display -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <PageHeader />
         </div>
-
-        <div class="form-body">
-            <div class="field">
-                <label>Title</label>
-                <input type="text" @bind="Entry.Title" placeholder="Entry title..." />
+        <div class="streak-display">
+            <div class="text-center">
+                <h3 class="mb-0">🔥 @currentStreak</h3>
+                <small class="text-muted">Day Streak</small>
             </div>
-
-            <div class="field">
-                <label>Mood</label>
-                <select @bind="Entry.Mood">
-                    <option value="positive">Positive (Happy, Excited, Grateful)</option>
-                    <option value="neutral">Neutral (Calm, Thoughtful, Bored)</option>
-                    <option value="negative">Negative (Sad, Stressed, Anxious)</option>
-                </select>
-            </div>
-
-            <div class="field">
-                <label>Tags (comma separated)</label>
-                <input type="text" @bind="tagsInput" placeholder="Work, Health, Travel..." />
-            </div>
-
-            <div class="field">
-                <label>Content</label>
-                <textarea @bind="Entry.Content" placeholder="Write your journal entry..." rows="10"></textarea>
-                <div class="toolbar">
-                    <button type="button">B</button>
-                    <button type="button">I</button>
-                    <button type="button">List</button>
-                </div>
-            </div>
-
-            <div class="form-actions">
-                <button class="btn-primary" @onclick="SaveEntry">Save Entry</button>
-                <button class="btn-secondary" @onclick="OnClose">Cancel</button>
+            <div class="text-center ms-4">
+                <h3 class="mb-0">🏆 @longestStreak</h3>
+                <small class="text-muted">Best Streak</small>
             </div>
         </div>
     </div>
+
+    <!-- Search and Filter Bar -->
+    <SearchBar SearchText="@searchText"
+               SearchTextChanged="HandleSearchTextChanged"
+               AvailableTags="@allTags"
+               OnFilterApplied="HandleFilterApplied" />
+
+    <!-- Add Entry Button -->
+    <div class="mb-4">
+        @if (hasEntryToday)
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-check-circle"></i> You've already logged your journal for today! 
+                You can edit it from the cards below.
+            </div>
+        }
+        else
+        {
+            <button class="btn btn-dark btn-lg w-100" @onclick="OpenNewEntryForm">
+                <i class="bi bi-plus-circle"></i> Log Today's Journal
+            </button>
+        }
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (!filteredEntries.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-journal-x" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No journal entries found.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Journal Cards Grid -->
+        <div class="row g-4">
+            @foreach (var entry in filteredEntries)
+            {
+                <JournalCard Entry="@entry" 
+                           OnEdit="HandleEditEntry"
+                           OnDelete="HandleDeleteEntry" />
+            }
+        </div>
+    }
+
+    <!-- Entry Form Modal -->
+    <EntryFormModal ShowForm="@showForm"
+                   IsNewEntry="@isNewEntry"
+                   CurrentEntry="@currentEntry"
+                   TagsText="@tagsText"
+                   OnTagsTextChanged="HandleTagsTextChanged"
+                   OnSave="HandleSaveEntry"
+                   OnClose="CloseForm" />
 </div>
 
+<style>
+    .streak-display {
+        display: flex;
+        gap: 2rem;
+        padding: 1rem 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        color: white;
+    }
+
+    .streak-display h3 {
+        font-weight: bold;
+        font-size: 2rem;
+    }
+</style>
+
 @code {
-    [Parameter] public Entry Entry { get; set; }
-    [Parameter] public EventCallback OnClose { get; set; }
+    private List<Entry> allEntries = new();
+    private List<Entry> filteredEntries = new();
+    private List<string> allTags = new();
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isNewEntry = true;
+    private bool hasEntryToday = false;
+    private Entry currentEntry = new();
+    private string tagsText = "";
+    private string searchText = "";
+    private int currentStreak = 0;
+    private int longestStreak = 0;
 
-    private string tagsInput = "";
-
-    protected override void OnParametersSet()
+    protected override async Task OnInitializedAsync()
     {
-        if (Entry?.Tags != null)
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        allEntries = await EntryService.GetAllEntriesAsync();
+        filteredEntries = allEntries;
+        allTags = await EntryService.GetAllTagsAsync();
+        hasEntryToday = await EntryService.HasEntryForDateAsync(DateTime.Today);
+        currentStreak = await EntryService.GetCurrentStreakAsync();
+        longestStreak = await EntryService.GetLongestStreakAsync();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void OpenNewEntryForm()
+    {
+        if (hasEntryToday)
         {
-            tagsInput = string.Join(", ", Entry.Tags);
+            // User already has an entry today, don't allow creating new one
+            return;
+        }
+
+        currentEntry = new Entry 
+        { 
+            Date = DateTime.Today,
+            Title = "",
+            Content = "",
+            Mood = "Happy"
+        };
+        tagsText = "";
+        isNewEntry = true;
+        showForm = true;
+    }
+
+    private void HandleEditEntry(Entry entry)
+    {
+        currentEntry = new Entry
+        {
+            Id = entry.Id,
+            Date = entry.Date,
+            Title = entry.Title,
+            Content = entry.Content,
+            Mood = entry.Mood,
+            Tags = new List<string>(entry.Tags)
+        };
+        tagsText = string.Join(", ", entry.Tags);
+        isNewEntry = false;
+        showForm = true;
+    }
+
+    private async Task HandleSaveEntry()
+    {
+        try
+        {
+            // Parse tags
+            if (!string.IsNullOrWhiteSpace(tagsText))
+            {
+                currentEntry.Tags = tagsText.Split(',')
+                    .Select(t => t.Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+            }
+
+            if (isNewEntry)
+            {
+                // Check one more time before saving
+                if (await EntryService.HasEntryForDateAsync(currentEntry.Date))
+                {
+                    await JS.InvokeVoidAsync("alert", "You already have an entry for this date!");
+                    return;
+                }
+                await EntryService.AddEntryAsync(currentEntry);
+            }
+            else
+            {
+                await EntryService.UpdateEntryAsync(currentEntry);
+            }
+
+            await LoadData();
+            CloseForm();
+        }
+        catch (InvalidOperationException ex)
+        {
+            await JS.InvokeVoidAsync("alert", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", "Error saving entry: " + ex.Message);
         }
     }
 
-    private void SaveEntry()
+    private async Task HandleDeleteEntry(Entry entry)
     {
-        if (!string.IsNullOrWhiteSpace(tagsInput))
+        var confirmed = await JS.InvokeAsync<bool>("confirm", 
+            $"Are you sure you want to delete '{entry.Title}'?");
+        
+        if (confirmed)
         {
-            Entry.Tags = tagsInput.Split(',').Select(t => t.Trim()).ToList();
+            await EntryService.DeleteEntryAsync(entry.Id);
+            await LoadData();
         }
-        OnClose.InvokeAsync();
+    }
+
+    private void CloseForm()
+    {
+        showForm = false;
+        currentEntry = new Entry();
+        tagsText = "";
+    }
+
+    private async Task HandleSearchTextChanged(string newSearchText)
+    {
+        searchText = newSearchText;
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredEntries = allEntries;
+        }
+        else
+        {
+            filteredEntries = await EntryService.SearchEntriesAsync(searchText);
+        }
+        StateHasChanged();
+    }
+
+    private void HandleTagsTextChanged(string newTagsText)
+    {
+        tagsText = newTagsText;
+    }
+
+    private async Task HandleFilterApplied(SearchBar.FilterCriteria criteria)
+    {
+        var serviceCriteria = new FilterCriteria
+        {
+            SearchText = criteria.SearchText,
+            MoodCategory = criteria.MoodCategory,
+            SpecificMood = criteria.SpecificMood,
+            Tag = criteria.Tag,
+            FromDate = criteria.FromDate,
+            ToDate = criteria.ToDate
+        };
+
+        filteredEntries = await EntryService.FilterEntriesAsync(serviceCriteria);
+        StateHasChanged();
     }
 }
