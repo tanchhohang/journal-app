@@ -1,0 +1,121 @@
+@inject ISecurityService SecurityService
+
+<div class="setup-screen">
+    <div class="setup-container">
+        <h2 class="mb-4">Set Up Pin</h2>
+        <p class="text-muted mb-4">Secure your journal with a PIN</p>
+        
+        <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" 
+                   class="form-control" 
+                   @bind="Username" 
+                   placeholder="Enter your name" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Create PIN (4-6 digits)</label>
+            <input type="password" 
+                   class="form-control" 
+                   @bind="Pin" 
+                   placeholder="Enter PIN"
+                   maxlength="6" />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Confirm PIN</label>
+            <input type="password" 
+                   class="form-control" 
+                   @bind="ConfirmPin" 
+                   placeholder="Confirm PIN"
+                   maxlength="6" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger py-2 mb-3">@ErrorMessage</div>
+        }
+
+        <button class="btn btn-dark w-100 mb-2" @onclick="SetupSecurityAsync">Setup Security</button>
+        <button class="btn btn-outline-secondary w-100" @onclick="SkipSetup">Skip for now</button>
+    </div>
+</div>
+
+<style>
+    .setup-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .setup-container {
+        background: #ffffff;
+        padding: 3rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        width: 100%;
+        max-width: 400px;
+    }
+</style>
+
+@code {
+    private string Username { get; set; } = "";
+    private string Pin { get; set; } = "";
+    private string ConfirmPin { get; set; } = "";
+    private string ErrorMessage { get; set; } = "";
+
+    [Parameter]
+    public EventCallback OnSetupComplete { get; set; }
+
+    private async Task SetupSecurityAsync()
+    {
+        ErrorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            ErrorMessage = "Please enter your username";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Pin))
+        {
+            ErrorMessage = "Please enter a PIN";
+            return;
+        }
+
+        if (Pin.Length < 4)
+        {
+            ErrorMessage = "PIN must be at least 4 digits";
+            return;
+        }
+
+        if (Pin != ConfirmPin)
+        {
+            ErrorMessage = "PINs do not match";
+            return;
+        }
+
+        var success = await SecurityService.SetupSecurity(Username, Pin);
+
+        if (success)
+        {
+            await OnSetupComplete.InvokeAsync();
+        }
+        else
+        {
+            ErrorMessage = "Failed to setup security. Please try again.";
+        }
+    }
+
+    private async Task SkipSetup()
+    {
+        await OnSetupComplete.InvokeAsync();
+    }
+}
