@@ -139,3 +139,154 @@ body {
     background-color: #FCFCFC;
     min-height: 100vh;
 }
+
+.theme-dark {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+.theme-dark .card {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border-color: #444;
+}
+
+.theme-dark .form-control,
+.theme-dark .form-select {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border-color: #444;
+}
+
+.theme-dark .sidebar {
+    background-color: #0d0d0d;
+}
+
+.theme-light {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* Theme Base */
+body {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Light Theme (Default) */
+body.theme-light {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+body.theme-light .card {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+body.theme-light .calendar-container {
+    background: white;
+}
+
+/* Dark Theme */
+body.theme-dark {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+body.theme-dark .card {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border-color: #444;
+}
+
+body.theme-dark .form-control,
+body.theme-dark .form-select {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border-color: #444;
+}
+
+body.theme-dark .sidebar {
+    background-color: #0d0d0d !important;
+}
+
+body.theme-dark .calendar-container {
+    background: #2d2d2d;
+}
+
+body.theme-dark .calendar-day {
+    background: #1a1a1a;
+    border-color: #444;
+    color: #ffffff;
+}
+
+body.theme-dark .calendar-header {
+    background: #333;
+    color: #ffffff;
+}
+
+body.theme-dark .calendar-nav {
+    background: #2d2d2d;
+    color: #ffffff;
+}
+
+body.theme-dark .btn-outline-dark {
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
+body.theme-dark .btn-outline-dark:hover {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* Radzen Calendar Customization */
+.rz-scheduler {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.rz-scheduler-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 1rem;
+}
+
+.rz-scheduler-header button {
+    color: white;
+}
+
+.rz-event {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-weight: 500;
+}
+
+.rz-state-highlight {
+    background: #e7eeff !important;
+}
+
+/* Dark theme for Radzen */
+body.theme-dark .rz-scheduler {
+    background: #2d2d2d;
+    color: #ffffff;
+}
+
+body.theme-dark .rz-scheduler-header {
+    background: #1a1a1a;
+}
+
+body.theme-dark .rz-scheduler-table {
+    background: #2d2d2d;
+}
+
+body.theme-dark .rz-scheduler-table td {
+    border-color: #444;
+    color: #ffffff;
+}
+
+body.theme-dark .rz-event {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+}

@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using journalApp.Services;
+using Radzen;
 
 namespace journalApp;
 
@@ -9,7 +11,10 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .ConfigureFonts(fonts => { fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular"); });
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+            });
 
         builder.Services.AddMauiBlazorWebView();
 
@@ -17,6 +22,14 @@ public static class MauiProgram
         builder.Services.AddBlazorWebViewDeveloperTools();
         builder.Logging.AddDebug();
 #endif
+
+        // Register services
+        builder.Services.AddSingleton<IEntryService, EntryService>();
+        builder.Services.AddSingleton<ISecurityService, SecurityService>();
+        builder.Services.AddSingleton<IThemeService, journalApp.Services.ThemeService>(); // Use full namespace
+        
+        // Add Radzen services
+        builder.Services.AddRadzenComponents();
 
         return builder.Build();
     }
