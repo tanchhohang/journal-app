@@ -17,21 +17,28 @@
             </div>
 
             <div class="journal-body flex-grow-1 mb-3">
-                @((MarkupString)FormatContent(Entry.Content))
+                @((MarkupString)GetPreview(Entry.Content))
             </div>
 
-            <div class="d-flex justify-content-between gap-3 pt-3">
-                <div class="d-flex justify-content-between gap-3 pt-3">
+            @if (Entry.Tags != null && Entry.Tags.Any())
+            {
+                <div class="d-flex flex-wrap gap-2 mb-3">
                     @foreach (var tag in Entry.Tags)
                     {
                         <span class="tag-badge">@tag</span>
                     }
                 </div>
-                <div class="d-flex justify-content-end gap-3 pt-3">
-                    <button class="btn btn-sm btn-link text-muted text-decoration-none p-0">Export</button>
-                    <button class="btn btn-sm btn-link text-muted text-decoration-none p-0" 
-                            @onclick="() => OnEdit.InvokeAsync(Entry)">Edit</button>
-                </div>
+            }
+
+            <div class="d-flex justify-content-end gap-3 pt-3 border-top">
+                <button class="btn btn-sm btn-link text-muted text-decoration-none p-0" 
+                        @onclick="() => OnEdit.InvokeAsync(Entry)">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-link text-muted text-decoration-none p-0"
+                        @onclick="() => OnDelete.InvokeAsync(Entry)">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
             </div>
         </div>
     </div>
@@ -43,6 +50,9 @@
 
     [Parameter]
     public EventCallback<Entry> OnEdit { get; set; }
+
+    [Parameter]
+    public EventCallback<Entry> OnDelete { get; set; }
 
     private string GetMoodCategory(string mood)
     {
@@ -67,15 +77,21 @@
         };
     }
 
-    private string FormatContent(string content)
+    private string GetPreview(string htmlContent)
     {
-        if (string.IsNullOrEmpty(content)) return content;
+        if (string.IsNullOrEmpty(htmlContent)) return "";
 
-        var formatted = content;
-        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"\*\*(.*?)\*\*", "<strong>$1</strong>");
-        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"\*(.*?)\*", "<em>$1</em>");
-        formatted = formatted.Replace("\n", "<br/>");
+        // Strip HTML tags for preview
+        var text = System.Text.RegularExpressions.Regex.Replace(htmlContent, "<.*?>", " ");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+        
+        // Truncate to 150 characters
+        if (text.Length > 150)
+        {
+            text = text.Substring(0, 150) + "...";
+        }
 
-        return formatted;
+        return text;
     }
+    
 }

@@ -1,74 +1,116 @@
 ﻿@page "/"
+@using journalApp.Models
+@using journalApp.Services
+@using journalApp.Components.Journal
+@inject IEntryService EntryService
+@inject IJSRuntime JS
 
 <div class="page-wrapper">
-<div class="main-content">
-    <PageHeader />
+    <div class="main-content">
+        <PageHeader />
 
-    <hr style="border-color: #8B898C;" />
+        <hr style="border-color: #8B898C;" />
 
-    <SearchBar SearchText="@searchText" SearchTextChanged="@((value) => searchText = value)" />
+        <SearchBar SearchText="@searchText" 
+                   SearchTextChanged="HandleSearchChanged"
+                   AvailableTags="@allTags"
+                   OnFilterApplied="HandleFilterApplied" />
 
-    <div class="row g-4">
-        <AddJournalCard OnClick="ShowNewEntryForm" />
-
-        @foreach (var entry in entries)
+        @if (isLoading)
         {
-            <JournalCard Entry="entry" OnEdit="EditEntry" />
+            <div class="text-center py-5">
+                <div class="spinner-border"></div>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                <AddJournalCard OnClick="ShowNewEntryForm" />
+
+                @foreach (var entry in filteredEntries)
+                {
+                    <JournalCard Entry="@entry" OnEdit="EditEntry" OnDelete="DeleteEntry" />
+                }
+            </div>
+
+            <div class="text-center mt-4">
+                <button class="btn btn-link text-muted text-decoration-none">Go Next ></button>
+            </div>
         }
     </div>
-
-    <div class="text-center mt-4">
-        <button class="btn btn-link text-muted text-decoration-none">Go Next ></button>
-    </div>
-</div>
 </div>
 
 <EntryFormModal 
-    ShowForm="showForm"
-    IsNewEntry="isNewEntry"
-    CurrentEntry="currentEntry"
+    ShowForm="@showForm"
+    IsNewEntry="@isNewEntry"
+    CurrentEntry="@currentEntry"
     TagsText="@tagsText"
     OnTagsTextChanged="(value) => tagsText = value"
     OnSave="SaveEntry"
     OnClose="CloseForm" />
 
 @code {
-    private List<Entry> entries = new List<Entry>();
+    private List<Entry> entries = new();
+    private List<Entry> filteredEntries = new();
+    private List<string> allTags = new();
     private bool showForm = false;
-    private Entry currentEntry = new Entry();
+    private Entry currentEntry = new();
     private bool isNewEntry = true;
     private string tagsText = "";
     private string searchText = "";
+    private bool isLoading = true;
+    private string dbPath = "";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        entries.Add(new Entry
+        dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db3");
+        Console.WriteLine($"=== Database path: {dbPath}");
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
         {
-            Id = 1,
-            Title = "Rich Text Title Positive",
-            Date = DateTime.Parse("2025-12-19"),
-            Mood = "Happy",
-            Content = "Lorem ipsum dolor sit amet, **consectetur adipiscing** elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, *quis nostrud* exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-            Tags = new List<string> { "Work", "Health" }
-        });
-        
-        entries.Add(new Entry
+            isLoading = true;
+            StateHasChanged();
+
+            Console.WriteLine("=== Loading entries from database...");
+            entries = await EntryService.GetAllEntriesAsync();
+            filteredEntries = entries;
+            allTags = await EntryService.GetAllTagsAsync();
+            
+            Console.WriteLine($"=== Loaded {entries.Count} entries");
+            foreach (var entry in entries)
+            {
+                Console.WriteLine($"    Entry {entry.Id}: {entry.Title} - {entry.Date:yyyy-MM-dd}");
+            }
+        }
+        catch (Exception ex)
         {
-            Id = 2,
-            Title = "Rich Text Title Negative",
-            Date = DateTime.Parse("2025-12-19"),
-            Mood = "Stressed",
-            Content = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-            Tags = new List<string> { "Personal" }
-        });
+            Console.WriteLine($"!!! Error loading: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void ShowNewEntryForm()
     {
         isNewEntry = true;
-        currentEntry = new Entry { Date = DateTime.Now, Mood = "Happy" };
+        currentEntry = new Entry 
+        { 
+            Date = DateTime.Today, 
+            Mood = "Happy",
+            Title = "",
+            Content = "",
+            Tags = new List<string>()
+        };
         tagsText = "";
         showForm = true;
+        StateHasChanged();
     }
 
     private void EditEntry(Entry entry)
@@ -81,35 +123,104 @@
             Date = entry.Date,
             Mood = entry.Mood,
             Content = entry.Content,
-            Tags = new List<string>(entry.Tags)
+            Tags = new List<string>(entry.Tags ?? new List<string>())
         };
-        tagsText = string.Join(", ", entry.Tags);
+        tagsText = string.Join(", ", entry.Tags ?? new List<string>());
         showForm = true;
+        StateHasChanged();
     }
 
-    private void SaveEntry()
+    private async Task SaveEntry()
     {
-        if (!string.IsNullOrWhiteSpace(tagsText))
+        try
         {
-            currentEntry.Tags = tagsText.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
-        }
+            Console.WriteLine("=== Saving entry...");
+            
+            // Parse tags
+            if (!string.IsNullOrWhiteSpace(tagsText))
+            {
+                currentEntry.Tags = tagsText.Split(',')
+                    .Select(t => t.Trim())
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .ToList();
+            }
+            else
+            {
+                currentEntry.Tags = new List<string>();
+            }
 
-        if (isNewEntry)
-        {
-            currentEntry.Id = entries.Any() ? entries.Max(e => e.Id) + 1 : 1;
-            entries.Add(currentEntry);
-        }
-        else
-        {
-            var index = entries.FindIndex(e => e.Id == currentEntry.Id);
-            if (index >= 0) entries[index] = currentEntry;
-        }
+            if (isNewEntry)
+            {
+                var result = await EntryService.AddEntryAsync(currentEntry);
+                Console.WriteLine($"=== Entry added! ID: {currentEntry.Id}");
+            }
+            else
+            {
+                await EntryService.UpdateEntryAsync(currentEntry);
+                Console.WriteLine($"=== Entry updated! ID: {currentEntry.Id}");
+            }
 
-        CloseForm();
+            await LoadData();
+            CloseForm();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"!!! Error saving: {ex.Message}");
+            await JS.InvokeVoidAsync("alert", "Error: " + ex.Message);
+        }
+    }
+
+    private async Task DeleteEntry(Entry entry)
+    {
+        try
+        {
+            var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete '{entry.Title}'?");
+            if (confirmed)
+            {
+                await EntryService.DeleteEntryAsync(entry.Id);
+                Console.WriteLine($"=== Entry deleted: {entry.Id}");
+                await LoadData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"!!! Error deleting: {ex.Message}");
+        }
     }
 
     private void CloseForm()
     {
         showForm = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleSearchChanged(string newSearchText)
+    {
+        searchText = newSearchText;
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredEntries = entries;
+        }
+        else
+        {
+            filteredEntries = await EntryService.SearchEntriesAsync(searchText);
+        }
+        StateHasChanged();
+    }
+
+    private async Task HandleFilterApplied(SearchBar.FilterCriteria criteria)
+    {
+        var serviceCriteria = new FilterCriteria
+        {
+            SearchText = criteria.SearchText,
+            MoodCategory = criteria.MoodCategory,
+            SpecificMood = criteria.SpecificMood,
+            Tag = criteria.Tag,
+            FromDate = criteria.FromDate,
+            ToDate = criteria.ToDate
+        };
+
+        filteredEntries = await EntryService.FilterEntriesAsync(serviceCriteria);
+        StateHasChanged();
     }
 }

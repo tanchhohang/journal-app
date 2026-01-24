@@ -1,0 +1,47 @@
+@inject IThemeService ThemeService
+@inject IJSRuntime JS
+
+<button class="btn btn-sm @buttonClass" @onclick="ToggleTheme">
+    <i class="bi @iconClass"></i>
+</button>
+
+@code {
+    private string currentTheme = "light";
+    private string iconClass = "bi-moon-fill";
+    private string buttonClass = "btn-outline-dark";
+
+    [Parameter]
+    public EventCallback<string> OnThemeChanged { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentTheme = await ThemeService.GetTheme();
+        UpdateUI();
+    }
+
+    private async Task ToggleTheme()
+    {
+        await ThemeService.ToggleTheme();
+        currentTheme = await ThemeService.GetTheme();
+        UpdateUI();
+        
+        // Apply theme to body
+        await JS.InvokeVoidAsync("eval", $"document.body.className = 'theme-{currentTheme}'");
+        
+        await OnThemeChanged.InvokeAsync(currentTheme);
+    }
+
+    private void UpdateUI()
+    {
+        if (currentTheme == "dark")
+        {
+            iconClass = "bi-sun-fill";
+            buttonClass = "btn-outline-light";
+        }
+        else
+        {
+            iconClass = "bi-moon-fill";
+            buttonClass = "btn-outline-dark";
+        }
+    }
+}

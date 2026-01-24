@@ -1,11 +1,98 @@
-<div class="d-flex gap-2 mb-4">
-    <input type="text" class="form-control journal-search-input" placeholder="Search Journals" 
-           @bind="SearchText" @bind:event="oninput" style="flex: 1;" />
-    <div class="action-buttons">
-        <button class="journal-btn">Search</button>
-        <button class="journal-btn">Filter</button>
-        <button class="journal-btn">Calendar</button>
+@using journalApp.Models
+
+<div class="mb-4">
+    <div class="d-flex gap-2 mb-3">
+        <input type="text" class="form-control journal-search-input" placeholder="Search by title or content..." 
+               @bind="SearchText" @bind:event="oninput" @onkeyup="OnSearchChanged" style="flex: 1;" />
+        <button class="journal-btn" @onclick="OnSearchChanged">
+            <i class="bi bi-search"></i> Search
+        </button>
+        <button class="journal-btn" @onclick="ToggleFilters">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
     </div>
+
+    @if (ShowFilters)
+    {
+        <div class="filter-panel p-3 border rounded">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label small">Mood Category</label>
+                    <select class="form-select form-select-sm" 
+                            value="@SelectedMoodCategory" 
+                            @onchange="@(e => { SelectedMoodCategory = e.Value?.ToString() ?? ""; OnFilterChanged(); })">
+                        <option value="">All Moods</option>
+                        <option value="Positive">Positive</option>
+                        <option value="Neutral">Neutral</option>
+                        <option value="Negative">Negative</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label small">Specific Mood</label>
+                    <select class="form-select form-select-sm" 
+                            value="@SelectedMood" 
+                            @onchange="@(e => { SelectedMood = e.Value?.ToString() ?? ""; OnFilterChanged(); })">
+                        <option value="">All</option>
+                        <optgroup label="Positive">
+                            <option value="Happy">Happy</option>
+                            <option value="Excited">Excited</option>
+                            <option value="Relaxed">Relaxed</option>
+                            <option value="Grateful">Grateful</option>
+                            <option value="Confident">Confident</option>
+                        </optgroup>
+                        <optgroup label="Neutral">
+                            <option value="Calm">Calm</option>
+                            <option value="Thoughtful">Thoughtful</option>
+                            <option value="Curious">Curious</option>
+                            <option value="Nostalgic">Nostalgic</option>
+                            <option value="Bored">Bored</option>
+                        </optgroup>
+                        <optgroup label="Negative">
+                            <option value="Sad">Sad</option>
+                            <option value="Angry">Angry</option>
+                            <option value="Stressed">Stressed</option>
+                            <option value="Lonely">Lonely</option>
+                            <option value="Anxious">Anxious</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label small">Tag</label>
+                    <select class="form-select form-select-sm" 
+                            value="@SelectedTag" 
+                            @onchange="@(e => { SelectedTag = e.Value?.ToString() ?? ""; OnFilterChanged(); })">
+                        <option value="">All Tags</option>
+                        @foreach (var tag in AvailableTags)
+                        {
+                            <option value="@tag">@tag</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label small">From Date</label>
+                    <input type="date" class="form-control form-control-sm" 
+                           value="@(FromDate?.ToString("yyyy-MM-dd"))" 
+                           @onchange="@(e => { FromDate = string.IsNullOrEmpty(e.Value?.ToString()) ? null : DateTime.Parse(e.Value.ToString()!); OnFilterChanged(); })" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label small">To Date</label>
+                    <input type="date" class="form-control form-control-sm" 
+                           value="@(ToDate?.ToString("yyyy-MM-dd"))" 
+                           @onchange="@(e => { ToDate = string.IsNullOrEmpty(e.Value?.ToString()) ? null : DateTime.Parse(e.Value.ToString()!); OnFilterChanged(); })" />
+                </div>
+
+                <div class="col-12">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="ClearFilters">
+                        Clear All Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -14,4 +101,70 @@
 
     [Parameter]
     public EventCallback<string> SearchTextChanged { get; set; }
+
+    [Parameter]
+    public List<string> AvailableTags { get; set; } = new List<string>();
+
+    [Parameter]
+    public EventCallback<FilterCriteria> OnFilterApplied { get; set; }
+
+    private bool ShowFilters { get; set; } = false;
+    private string SelectedMoodCategory { get; set; } = "";
+    private string SelectedMood { get; set; } = "";
+    private string SelectedTag { get; set; } = "";
+    private DateTime? FromDate { get; set; }
+    private DateTime? ToDate { get; set; }
+
+    private void ToggleFilters()
+    {
+        ShowFilters = !ShowFilters;
+    }
+
+    private async Task OnSearchChanged()
+    {
+        await SearchTextChanged.InvokeAsync(SearchText);
+        await ApplyFilters();
+    }
+
+    private void OnFilterChanged()
+    {
+        InvokeAsync(ApplyFilters);
+    }
+
+    private async Task ApplyFilters()
+    {
+        var criteria = new FilterCriteria
+        {
+            SearchText = SearchText,
+            MoodCategory = SelectedMoodCategory,
+            SpecificMood = SelectedMood,
+            Tag = SelectedTag,
+            FromDate = FromDate,
+            ToDate = ToDate
+        };
+
+        await OnFilterApplied.InvokeAsync(criteria);
+    }
+
+    private async Task ClearFilters()
+    {
+        SearchText = "";
+        SelectedMoodCategory = "";
+        SelectedMood = "";
+        SelectedTag = "";
+        FromDate = null;
+        ToDate = null;
+
+        await OnSearchChanged();
+    }
+
+    public class FilterCriteria
+    {
+        public string SearchText { get; set; } = "";
+        public string MoodCategory { get; set; } = "";
+        public string SpecificMood { get; set; } = "";
+        public string Tag { get; set; } = "";
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+    }
 }

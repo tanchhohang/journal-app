@@ -1,0 +1,240 @@
+@page "/calendar"
+@using journalApp.Models
+@using journalApp.Services
+@inject IEntryService EntryService
+@inject NavigationManager Navigation
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-calendar3"></i> Journal Calendar</h2>
+        <button class="btn btn-outline-dark" @onclick="GoToToday">
+            <i class="bi bi-calendar-check"></i> Today
+        </button>
+    </div>
+
+    <!-- Month Navigation -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <button class="btn btn-outline-dark" @onclick="PreviousMonth">
+            <i class="bi bi-chevron-left"></i> Previous
+        </button>
+        <h3>@currentMonth.ToString("MMMM yyyy")</h3>
+        <button class="btn btn-outline-dark" @onclick="NextMonth">
+            Next <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div class="calendar-grid">
+        <!-- Day Headers -->
+        @foreach (var day in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+        {
+            <div class="calendar-header">@day</div>
+        }
+
+        <!-- Calendar Days -->
+        @foreach (var day in calendarDays)
+        {
+            <div class="calendar-day @GetDayClass(day)" @onclick="() => SelectDay(day)">
+                <div class="day-number">@day.Day</div>
+                @if (HasEntry(day))
+                {
+                    <div class="entry-indicator">
+                        <i class="bi bi-circle-fill"></i>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Selected Day Entries -->
+    @if (selectedDate != null && selectedEntries.Any())
+    {
+        <div class="mt-4">
+            <h4>Entries for @selectedDate.Value.ToString("MMMM dd, yyyy")</h4>
+            <div class="row g-3 mt-2">
+                @foreach (var entry in selectedEntries)
+                {
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5>@entry.Title</h5>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-emoji-smile"></i> @entry.Mood
+                                </p>
+                                <p>@((MarkupString)entry.Content.Substring(0, Math.Min(200, entry.Content.Length)))...</p>
+                                <button class="btn btn-sm btn-outline-dark" @onclick="() => ViewEntry(entry.Id)">
+                                    View Full Entry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .calendar-header {
+        text-align: center;
+        font-weight: bold;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .calendar-day {
+        aspect-ratio: 1;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .calendar-day:hover {
+        background: #f8f9fa;
+        transform: scale(1.05);
+    }
+
+    .calendar-day.other-month {
+        opacity: 0.3;
+    }
+
+    .calendar-day.today {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #667eea;
+    }
+
+    .calendar-day.has-entry {
+        border-color: #667eea;
+        background: #f0f4ff;
+    }
+
+    .calendar-day.selected {
+        background: #e7eeff;
+        border-color: #667eea;
+        border-width: 3px;
+    }
+
+    .day-number {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .entry-indicator {
+        position: absolute;
+        bottom: 5px;
+        color: #667eea;
+        font-size: 0.5rem;
+    }
+</style>
+
+@code {
+    private DateTime currentMonth = DateTime.Today;
+    private List<DateTime> calendarDays = new();
+    private Dictionary<DateTime, Entry> entriesByDate = new();
+    private DateTime? selectedDate = null;
+    private List<Entry> selectedEntries = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCalendar();
+    }
+
+    private async Task LoadCalendar()
+    {
+        // Load all entries
+        var allEntries = await EntryService.GetAllEntriesAsync();
+        entriesByDate = allEntries.ToDictionary(e => e.Date.Date, e => e);
+
+        // Generate calendar days
+        GenerateCalendarDays();
+    }
+
+    private void GenerateCalendarDays()
+    {
+        calendarDays.Clear();
+        
+        var firstDayOfMonth = new DateTime(currentMonth.Year, currentMonth.Month, 1);
+        var lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+        
+        var startDate = firstDayOfMonth.AddDays(-(int)firstDayOfMonth.DayOfWeek);
+        var endDate = lastDayOfMonth.AddDays(6 - (int)lastDayOfMonth.DayOfWeek);
+
+        for (var date = startDate; date <= endDate; date = date.AddDays(1))
+        {
+            calendarDays.Add(date);
+        }
+    }
+
+    private string GetDayClass(DateTime day)
+    {
+        var classes = new List<string>();
+        
+        if (day.Month != currentMonth.Month)
+            classes.Add("other-month");
+        
+        if (day.Date == DateTime.Today)
+            classes.Add("today");
+        
+        if (HasEntry(day))
+            classes.Add("has-entry");
+        
+        if (selectedDate.HasValue && day.Date == selectedDate.Value.Date)
+            classes.Add("selected");
+
+        return string.Join(" ", classes);
+    }
+
+    private bool HasEntry(DateTime day)
+    {
+        return entriesByDate.ContainsKey(day.Date);
+    }
+
+    private async Task SelectDay(DateTime day)
+    {
+        selectedDate = day;
+        selectedEntries = (await EntryService.GetAllEntriesAsync())
+            .Where(e => e.Date.Date == day.Date)
+            .ToList();
+        StateHasChanged();
+    }
+
+    private async Task PreviousMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+        await LoadCalendar();
+    }
+
+    private async Task NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+        await LoadCalendar();
+    }
+
+    private void GoToToday()
+    {
+        currentMonth = DateTime.Today;
+        GenerateCalendarDays();
+        StateHasChanged();
+    }
+
+    private void ViewEntry(int entryId)
+    {
+        Navigation.NavigateTo($"/?entryId={entryId}");
+    }
+}
