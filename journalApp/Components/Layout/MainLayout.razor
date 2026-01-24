@@ -1,8 +1,112 @@
 ﻿@inherits LayoutComponentBase
+@using journalApp.Services
+@using journalApp.Components.Journal
+@inject ISecurityService SecurityService
+@inject IThemeService ThemeService
+@inject IJSRuntime JS
 
-<div class="d-flex">
-    <NavMenu />
-    <div class="flex-grow-1">
-        @Body
+@if (ShowSetup)
+{
+    <SetupSecurity OnSetupComplete="OnSetupComplete" />
+}
+else if (IsLocked)
+{
+    <LockScreen OnUnlocked="OnUnlocked" />
+}
+else
+{
+    <div class="d-flex">
+        <NavMenu />
+        <div class="flex-grow-1 main-content-wrapper">
+            <div class="top-bar">
+                <ThemeToggle OnThemeChanged="HandleThemeChanged" />
+                <button class="btn btn-sm btn-outline-dark ms-2" @onclick="LockApp">
+                    <i class="bi bi-lock"></i> Lock
+                </button>
+            </div>
+            @Body
+        </div>
     </div>
-</div>
+}
+
+<style>
+    .main-content-wrapper {
+        padding: 1rem 2rem;
+        min-height: 100vh;
+    }
+
+    .top-bar {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+</style>
+
+@code {
+    private bool IsLocked { get; set; } = false;
+    private bool ShowSetup { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Apply theme
+            var theme = await ThemeService.GetTheme();
+            await ApplyTheme(theme);
+
+            // Security check
+            var hasSetup = await SecurityService.HasSecuritySetup();
+            
+            if (!hasSetup)
+            {
+                ShowSetup = true;
+            }
+            else
+            {
+                IsLocked = await SecurityService.IsLocked();
+                
+                if (!IsLocked)
+                {
+                    await SecurityService.LockApp();
+                    IsLocked = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"!!! Error: {ex.Message}");
+        }
+    }
+
+    private async Task ApplyTheme(string theme)
+    {
+        await JS.InvokeVoidAsync("eval", $"document.body.className = 'theme-{theme}'");
+    }
+
+    private async Task HandleThemeChanged(string theme)
+    {
+        await ApplyTheme(theme);
+        StateHasChanged();
+    }
+
+    private async Task OnSetupComplete()
+    {
+        ShowSetup = false;
+        IsLocked = false;
+        StateHasChanged();
+    }
+
+    private async Task OnUnlocked()
+    {
+        IsLocked = false;
+        StateHasChanged();
+    }
+
+    private async Task LockApp()
+    {
+        await SecurityService.LockApp();
+        IsLocked = true;
+        StateHasChanged();
+    }
+}
