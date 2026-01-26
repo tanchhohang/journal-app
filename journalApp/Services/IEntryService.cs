@@ -14,8 +14,6 @@ namespace journalApp.Services
         Task<List<string>> GetAllTagsAsync();
         Task<List<JournalEntry>> SearchEntriesAsync(string searchText);
         Task<List<JournalEntry>> FilterEntriesAsync(FilterCriteria criteria);
-        Task<int> GetCurrentStreakAsync();
-        Task<int> GetLongestStreakAsync();
     }
 
     public class FilterCriteria
