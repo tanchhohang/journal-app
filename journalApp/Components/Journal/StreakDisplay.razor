@@ -1,0 +1,47 @@
+@using journalApp.Services
+@inject IStreakService StreakService
+
+<div class="streak-badge">
+    <div class="streak-number">@CurrentStreak</div>
+</div>
+
+<style>
+    .streak-badge {
+        background: #FF8C42;
+        padding: 10px 24px;
+        border-radius: 50px;
+    }
+
+    .streak-number {
+        font-size: 24px;
+        font-weight: 700;
+        color: white;
+    }
+</style>
+
+@code {
+    private int CurrentStreak { get; set; } = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStreak();
+    }
+
+    private async Task LoadStreak()
+    {
+        try
+        {
+            CurrentStreak = await StreakService.GetCurrentStreak();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"!!! Error loading streak: {ex.Message}");
+        }
+    }
+
+    public async Task RefreshStreak()
+    {
+        await LoadStreak();
+    }
+}
