@@ -71,9 +71,9 @@
         var category = GetMoodCategory(mood);
         return category switch
         {
-            "Positive" => "Positive",
-            "Negative" => "Negative",
-            _ => "Neutral"
+            "Positive" => "text-success", 
+            "Negative" => "text-danger",  
+            _ => "text-warning"             
         };
     }
 
