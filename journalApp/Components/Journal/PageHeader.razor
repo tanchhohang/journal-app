@@ -1,10 +1,70 @@
-<div class="d-flex justify-content-between align-items-start mb-2">
-    <div>
-        <h1 class="display-5 mb-1 fw-bold fs-1">@CurrentDate.ToString("dd MMMM, yyyy")</h1>
-        <p class="text-muted">@CurrentDate.ToString("dddd")</p>
+@using journalApp.Services
+@inject ISecurityService SecurityService
+
+<div class="page-header">
+    <div class="header-left">
+        <h1 class="welcome-text">Welcome Back! @Username</h1>
+        <p class="current-date">@DateTime.Now.ToString("dd MMMM, yyyy")</p>
+    </div>
+    <div class="header-right">
+        <StreakDisplay @ref="streakDisplay" />
     </div>
 </div>
 
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding: 1rem 0;
+    }
+
+    .header-left {
+        flex: 1;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .welcome-text {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #000000;
+        margin: 0;
+    }
+
+    .current-date {
+        font-size: 1rem;
+        color: #666666;
+        margin: 0.25rem 0 0 0;
+    }
+
+    body.theme-dark .welcome-text {
+        color: #ffffff;
+    }
+
+    body.theme-dark .current-date {
+        color: #999999;
+    }
+</style>
+
 @code {
-    private DateTime CurrentDate => DateTime.Now;
+    private string Username { get; set; } = "User";
+    private StreakDisplay? streakDisplay;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Username = await SecurityService.GetUsername();
+    }
+
+    public async Task RefreshStreak()
+    {
+        if (streakDisplay != null)
+        {
+            await streakDisplay.RefreshStreak();
+        }
+    }
 }

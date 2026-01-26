@@ -23,12 +23,12 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-        // Register services
         builder.Services.AddSingleton<IEntryService, EntryService>();
         builder.Services.AddSingleton<ISecurityService, SecurityService>();
-        builder.Services.AddSingleton<IThemeService, journalApp.Services.ThemeService>(); // Use full namespace
+        builder.Services.AddSingleton<IThemeService, journalApp.Services.ThemeService>();
+        builder.Services.AddSingleton<IStreakService, StreakService>();
+
         
-        // Add Radzen services
         builder.Services.AddRadzenComponents();
 
         return builder.Build();
