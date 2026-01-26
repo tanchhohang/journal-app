@@ -13,11 +13,26 @@ namespace journalApp.Services
         {
             try
             {
-                var pin = await SecureStorage.Default.GetAsync(PIN_KEY);
-                return !string.IsNullOrEmpty(pin);
+                try
+                {
+                    var pin = await SecureStorage.Default.GetAsync(PIN_KEY);
+                    if (!string.IsNullOrEmpty(pin))
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    
+                }
+
+                var prefPin = Preferences.Default.Get(PIN_KEY, string.Empty);
+                var hasPin = !string.IsNullOrEmpty(prefPin);
+                return hasPin;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error in HasSecuritySetup: {ex.Message}");
                 return false;
             }
         }
@@ -26,21 +41,63 @@ namespace journalApp.Services
         {
             try
             {
+
                 if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(pin))
+                {
+                    Console.WriteLine("Username or PIN is empty");
                     return false;
+                }
 
                 if (pin.Length < 4)
+                {
+                    Console.WriteLine("PIN too short");
                     return false;
+                }
 
+                // hash the PIN
                 var hashedPin = HashPin(pin);
-                await SecureStorage.Default.SetAsync(PIN_KEY, hashedPin);
-                Preferences.Default.Set(USERNAME_KEY, username);
-                Preferences.Default.Set(LOCK_STATE_KEY, "unlocked");
+                Console.WriteLine("=== PIN hashed successfully");
 
+                bool useSecureStorage = false;
+                try
+                {
+                    try
+                    {
+                        SecureStorage.Default.Remove(PIN_KEY);
+                    }
+                    catch
+                    {
+                    }
+
+                    await SecureStorage.Default.SetAsync(PIN_KEY, hashedPin);
+                    var test = await SecureStorage.Default.GetAsync(PIN_KEY);
+                    if (!string.IsNullOrEmpty(test))
+                    {
+                        useSecureStorage = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                   
+                }
+                
+                if (!useSecureStorage)
+                {
+                    Preferences.Default.Remove(PIN_KEY);
+                    Preferences.Default.Set(PIN_KEY, hashedPin);
+                }
+
+                // store username
+                Preferences.Default.Set(USERNAME_KEY, username);
+
+                // set initial state as unlocked
+                Preferences.Default.Set(LOCK_STATE_KEY, "unlocked");
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error in SetupSecurity: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
@@ -49,15 +106,37 @@ namespace journalApp.Services
         {
             try
             {
-                var storedHash = await SecureStorage.Default.GetAsync(PIN_KEY);
+                string storedHash = null;
+                
+                // try SecureStorage first
+                try
+                {
+                    storedHash = await SecureStorage.Default.GetAsync(PIN_KEY);
+                }
+                catch
+                {
+                    // secureStorage not available
+                }
+
+                // fallback to Preferences if needed
                 if (string.IsNullOrEmpty(storedHash))
+                {
+                    storedHash = Preferences.Default.Get(PIN_KEY, string.Empty);
+                }
+
+                if (string.IsNullOrEmpty(storedHash))
+                {
+                    Console.WriteLine("No stored PIN found");
                     return false;
+                }
 
                 var inputHash = HashPin(pin);
-                return storedHash == inputHash;
+                var isValid = storedHash == inputHash;
+                return isValid;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error in ValidatePin: {ex.Message}");
                 return false;
             }
         }
@@ -66,10 +145,12 @@ namespace journalApp.Services
         {
             try
             {
-                return Task.FromResult(Preferences.Default.Get(USERNAME_KEY, "User"));
+                var username = Preferences.Default.Get(USERNAME_KEY, "User");
+                return Task.FromResult(username);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error in GetUsername: {ex.Message}");
                 return Task.FromResult("User");
             }
         }
@@ -80,14 +161,18 @@ namespace journalApp.Services
             {
                 var hasSetup = await HasSecuritySetup();
                 if (!hasSetup)
+                {
                     return false;
+                }
 
                 var lockState = Preferences.Default.Get(LOCK_STATE_KEY, "locked");
-                return lockState == "locked";
+                var isLocked = lockState == "locked";
+                return isLocked;
             }
-            catch
+            catch (Exception ex)
             {
-                return true;
+                Console.WriteLine($"Error in IsLocked: {ex.Message}");
+                return true; // default to locked for security
             }
         }
 
@@ -97,8 +182,9 @@ namespace journalApp.Services
             {
                 Preferences.Default.Set(LOCK_STATE_KEY, "locked");
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error in LockApp: {ex.Message}");
             }
             return Task.CompletedTask;
         }
@@ -109,9 +195,9 @@ namespace journalApp.Services
             {
                 Preferences.Default.Set(LOCK_STATE_KEY, "unlocked");
             }
-            catch
+            catch (Exception ex)
             {
-                // Handle error silently
+                Console.WriteLine($"Error in UnlockApp: {ex.Message}");
             }
             return Task.CompletedTask;
         }
@@ -122,7 +208,24 @@ namespace journalApp.Services
             {
                 var bytes = Encoding.UTF8.GetBytes(pin);
                 var hash = sha256.ComputeHash(bytes);
-                return Convert.ToBase64String(hash);
+                var result = Convert.ToBase64String(hash);
+                Console.WriteLine($"=== PIN hashed (length: {result.Length})");
+                return result;
+            }
+        }
+
+        // Method to reset security (useful for testing)
+        public async Task ResetSecurity()
+        {
+            try
+            {
+                SecureStorage.Default.Remove(PIN_KEY);
+                Preferences.Default.Remove(USERNAME_KEY);
+                Preferences.Default.Remove(LOCK_STATE_KEY);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error resetting security: {ex.Message}");
             }
         }
     }

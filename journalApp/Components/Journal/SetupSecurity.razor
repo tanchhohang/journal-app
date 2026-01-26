@@ -19,7 +19,8 @@
                    class="form-control" 
                    @bind="Pin" 
                    placeholder="Enter PIN"
-                   maxlength="6" />
+                   maxlength="6"
+                   @onkeypress="ValidateNumericInput" />
         </div>
 
         <div class="mb-4">
@@ -28,7 +29,8 @@
                    class="form-control" 
                    @bind="ConfirmPin" 
                    placeholder="Confirm PIN"
-                   maxlength="6" />
+                   maxlength="6"
+                   @onkeypress="ValidateNumericInput" />
         </div>
 
         @if (!string.IsNullOrEmpty(ErrorMessage))
@@ -36,8 +38,15 @@
             <div class="alert alert-danger py-2 mb-3">@ErrorMessage</div>
         }
 
-        <button class="btn btn-dark w-100 mb-2" @onclick="SetupSecurityAsync">Setup Security</button>
-        <button class="btn btn-outline-secondary w-100" @onclick="SkipSetup">Skip for now</button>
+        <button class="btn btn-dark w-100 mb-2" @onclick="SetupSecurityAsync" disabled="@IsProcessing">
+            @if (IsProcessing)
+            {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+            }
+            Setup Security
+        </button>
+        
+        @* Skip button removed - security is now mandatory *@
     </div>
 </div>
 
@@ -63,6 +72,17 @@
         width: 100%;
         max-width: 400px;
     }
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #333;
+    }
+
+    .form-control:focus {
+        border-color: #000;
+        box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.1);
+    }
 </style>
 
 @code {
@@ -70,52 +90,89 @@
     private string Pin { get; set; } = "";
     private string ConfirmPin { get; set; } = "";
     private string ErrorMessage { get; set; } = "";
+    private bool IsProcessing { get; set; } = false;
 
     [Parameter]
     public EventCallback OnSetupComplete { get; set; }
 
-    private async Task SetupSecurityAsync()
+    private void ValidateNumericInput(KeyboardEventArgs e)
     {
-        ErrorMessage = "";
-
-        if (string.IsNullOrWhiteSpace(Username))
+        // Allow only numbers
+        if (!char.IsDigit(e.Key[0]) && e.Key != "Backspace" && e.Key != "Delete" && e.Key != "Tab")
         {
-            ErrorMessage = "Please enter your username";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(Pin))
-        {
-            ErrorMessage = "Please enter a PIN";
-            return;
-        }
-
-        if (Pin.Length < 4)
-        {
-            ErrorMessage = "PIN must be at least 4 digits";
-            return;
-        }
-
-        if (Pin != ConfirmPin)
-        {
-            ErrorMessage = "PINs do not match";
-            return;
-        }
-
-        var success = await SecurityService.SetupSecurity(Username, Pin);
-
-        if (success)
-        {
-            await OnSetupComplete.InvokeAsync();
-        }
-        else
-        {
-            ErrorMessage = "Failed to setup security. Please try again.";
+            // Note: In Blazor, we can't prevent default easily in @onkeypress
+            // So we'll validate in the SetupSecurityAsync method
         }
     }
 
-    private async Task SkipSetup()
+    private async Task SetupSecurityAsync()
     {
-        await OnSetupComplete.InvokeAsync();
+        ErrorMessage = "";
+        IsProcessing = true;
+
+        try
+        {
+            // Validate username
+            if (string.IsNullOrWhiteSpace(Username))
+            {
+                ErrorMessage = "Please enter your username";
+                return;
+            }
+
+            if (Username.Length < 2)
+            {
+                ErrorMessage = "Username must be at least 2 characters";
+                return;
+            }
+
+            // Validate PIN
+            if (string.IsNullOrWhiteSpace(Pin))
+            {
+                ErrorMessage = "Please enter a PIN";
+                return;
+            }
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(Pin, @"^\d+$"))
+            {
+                ErrorMessage = "PIN must contain only digits";
+                return;
+            }
+
+            if (Pin.Length < 4 || Pin.Length > 6)
+            {
+                ErrorMessage = "PIN must be 4-6 digits";
+                return;
+            }
+
+            // Validate confirmation
+            if (Pin != ConfirmPin)
+            {
+                ErrorMessage = "PINs do not match";
+                return;
+            }
+
+            // Save security settings
+            var success = await SecurityService.SetupSecurity(Username, Pin);
+
+            if (success)
+            {
+                Console.WriteLine("=== Security setup successful");
+                await OnSetupComplete.InvokeAsync();
+            }
+            else
+            {
+                ErrorMessage = "Failed to setup security. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"!!! Error setting up security: {ex.Message}");
+            ErrorMessage = "An error occurred. Please try again.";
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
     }
 }
