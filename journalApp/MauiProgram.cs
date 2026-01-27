@@ -27,6 +27,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISecurityService, SecurityService>();
         builder.Services.AddSingleton<IThemeService, journalApp.Services.ThemeService>();
         builder.Services.AddSingleton<IStreakService, StreakService>();
+        builder.Services.AddSingleton<IPdfExportService, PdfExportService>();
 
         
         builder.Services.AddRadzenComponents();
