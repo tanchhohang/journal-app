@@ -9,5 +9,7 @@ namespace journalApp.Services
         Task<bool> IsLocked();
         Task LockApp();
         Task UnlockApp();
+        Task LogoutAsync();
+
     }
 }

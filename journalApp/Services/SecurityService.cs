@@ -56,7 +56,6 @@ namespace journalApp.Services
 
                 // hash the PIN
                 var hashedPin = HashPin(pin);
-                Console.WriteLine("=== PIN hashed successfully");
 
                 bool useSecureStorage = false;
                 try
@@ -209,23 +208,18 @@ namespace journalApp.Services
                 var bytes = Encoding.UTF8.GetBytes(pin);
                 var hash = sha256.ComputeHash(bytes);
                 var result = Convert.ToBase64String(hash);
-                Console.WriteLine($"=== PIN hashed (length: {result.Length})");
                 return result;
             }
         }
-
-        // Method to reset security (useful for testing)
-        public async Task ResetSecurity()
+        
+        public async Task LogoutAsync()
         {
             try
             {
-                SecureStorage.Default.Remove(PIN_KEY);
-                Preferences.Default.Remove(USERNAME_KEY);
-                Preferences.Default.Remove(LOCK_STATE_KEY);
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error resetting security: {ex.Message}");
             }
         }
     }
