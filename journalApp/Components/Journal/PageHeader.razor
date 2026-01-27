@@ -1,5 +1,8 @@
 @using journalApp.Services
 @inject ISecurityService SecurityService
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
 
 <div class="page-header">
     <div class="header-left">
@@ -8,7 +11,14 @@
     </div>
     <div class="header-right">
         <StreakDisplay @ref="streakDisplay" />
+
+        <button class="btn btn-link logout-btn"
+                title="Logout"
+                @onclick="Logout">
+            <i class="bi bi-box-arrow-right"></i>
+        </button>
     </div>
+
 </div>
 
 <style>
@@ -49,6 +59,25 @@
     body.theme-dark .current-date {
         color: #999999;
     }
+
+    .logout-btn {
+        margin-left: 1rem;
+        font-size: 1.25rem;
+        color: #666;
+    }
+
+    .logout-btn:hover {
+        color: #000;
+    }
+
+    body.theme-dark .logout-btn {
+        color: #aaa;
+    }
+
+    body.theme-dark .logout-btn:hover {
+        color: #fff;
+    }
+
 </style>
 
 @code {
@@ -65,6 +94,15 @@
         if (streakDisplay != null)
         {
             await streakDisplay.RefreshStreak();
+        }
+    }
+    
+    private async Task Logout()
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Log out?");
+        if (confirmed)
+        {
+            await SecurityService.LogoutAsync();
         }
     }
 }
