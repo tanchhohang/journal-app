@@ -78,68 +78,51 @@
     .calendar-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        gap: 10px;
-        margin-bottom: 2rem;
+        gap: 6px;
+        max-width: 80vw;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .calendar-header {
         text-align: center;
-        font-weight: bold;
-        padding: 10px;
+        font-weight: 600;
+        padding: 6px;
+        font-size: 0.8rem;
         background: #f8f9fa;
-        border-radius: 6px;
+        border-radius: 4px;
     }
 
     .calendar-day {
         aspect-ratio: 1;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        padding: 10px;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 4px;
+        font-size: 0.75rem;
         cursor: pointer;
-        transition: all 0.2s;
         position: relative;
+
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
     }
 
-    .calendar-day:hover {
-        background: #f8f9fa;
-        transform: scale(1.05);
-    }
-
-    .calendar-day.other-month {
-        opacity: 0.3;
-    }
-
-    .calendar-day.today {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-color: #667eea;
-    }
-
-    .calendar-day.has-entry {
-        border-color: #667eea;
-        background: #f0f4ff;
-    }
-
-    .calendar-day.selected {
-        background: #e7eeff;
-        border-color: #667eea;
-        border-width: 3px;
-    }
-
     .day-number {
-        font-weight: bold;
-        font-size: 1.1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
     }
 
     .entry-indicator {
         position: absolute;
-        bottom: 5px;
-        color: #667eea;
-        font-size: 0.5rem;
+        bottom: 2px;
+        font-size: 0.4rem;
+    }
+
+    .calendar-day.selected {
+        background-color: lightblue;
+        color: white;
+        border-radius: 50%;
+        font-weight: 600;
     }
 </style>
 
