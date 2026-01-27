@@ -3,7 +3,7 @@
 <div class="lock-screen">
     <div class="lock-container">
         <h2 class="mb-4">Welcome back, @Username</h2>
-        <p class="text-muted mb-4">Enter your PIN to unlock</p>
+        <p class="mb-4">Enter your PIN to unlock</p>
         
         <div class="pin-input-container mb-3">
             <input type="password" 
@@ -27,31 +27,55 @@
 <style>
     .lock-screen {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        top: 0; left: 0; right: 0; bottom: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 9999;
+        transition: background 0.3s;
+    }
+
+    /* Light Theme */
+    body.theme-light .lock-screen {
+        background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+    }
+
+    body.theme-dark .lock-screen {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
     }
 
     .lock-container {
-        background: #ffffff;
         padding: 3rem;
         border-radius: 12px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         width: 100%;
         max-width: 400px;
+        transition: background 0.3s, color 0.3s;
+    }
+
+    /* Light Theme */
+    body.theme-light .lock-container {
+        background: #ffffff;
+        color: #000000;
+    }
+
+    /* Dark Theme */
+    body.theme-dark .lock-container {
+        background: #2d2d2d;
+        color: #ffffff;
     }
 
     .pin-input {
         font-size: 1.5rem;
         letter-spacing: 0.5rem;
         height: 60px;
+        background-color: inherit;
+        color: inherit;
+        border: 1px solid #6F6F6F;
+        border-radius: 8px;
+        text-align: center;
     }
+
 </style>
 
 @code {
