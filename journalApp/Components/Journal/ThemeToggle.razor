@@ -1,47 +1,62 @@
+@using journalApp.Services
 @inject IThemeService ThemeService
 @inject IJSRuntime JS
 
-<button class="btn btn-sm @buttonClass" @onclick="ToggleTheme">
-    <i class="bi @iconClass"></i>
+<button class="btn btn-sm theme-toggle-btn" @onclick="ToggleTheme">
+    @if (CurrentTheme == "light")
+    {
+        <i class="bi bi-moon-fill"></i>
+    }
+    else
+    {
+        <i class="bi bi-sun-fill"></i>
+    }
 </button>
 
-@code {
-    private string currentTheme = "light";
-    private string iconClass = "bi-moon-fill";
-    private string buttonClass = "btn-outline-dark";
+<style>
+    .theme-toggle-btn {
+        border: 1px solid #ddd;
+        background-color: white;
+        color: #333;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.25rem;
+        transition: all 0.3s ease;
+    }
 
-    [Parameter]
-    public EventCallback<string> OnThemeChanged { get; set; }
+    .theme-toggle-btn:hover {
+        background-color: #f8f9fa;
+        border-color: #adb5bd;
+    }
+
+    body.theme-dark .theme-toggle-btn {
+        background-color: #2d2d2d;
+        color: #ffffff;
+        border-color: #444;
+    }
+
+    body.theme-dark .theme-toggle-btn:hover {
+        background-color: #3d3d3d;
+        border-color: #555;
+    }
+
+    .theme-toggle-btn i {
+        font-size: 1rem;
+    }
+</style>
+
+@code {
+    private string CurrentTheme = "light";
 
     protected override async Task OnInitializedAsync()
     {
-        currentTheme = await ThemeService.GetTheme();
-        UpdateUI();
+        CurrentTheme = await ThemeService.GetTheme();
+        await JS.InvokeVoidAsync("setTheme", CurrentTheme);
     }
 
     private async Task ToggleTheme()
     {
         await ThemeService.ToggleTheme();
-        currentTheme = await ThemeService.GetTheme();
-        UpdateUI();
-        
-        // Apply theme to body
-        await JS.InvokeVoidAsync("eval", $"document.body.className = 'theme-{currentTheme}'");
-        
-        await OnThemeChanged.InvokeAsync(currentTheme);
-    }
-
-    private void UpdateUI()
-    {
-        if (currentTheme == "dark")
-        {
-            iconClass = "bi-sun-fill";
-            buttonClass = "btn-outline-light";
-        }
-        else
-        {
-            iconClass = "bi-moon-fill";
-            buttonClass = "btn-outline-dark";
-        }
+        CurrentTheme = await ThemeService.GetTheme();
+        await JS.InvokeVoidAsync("setTheme", CurrentTheme);
     }
 }

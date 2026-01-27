@@ -1,3 +1,6 @@
+using System.Threading.Tasks;
+using Microsoft.Maui.Storage;
+
 namespace journalApp.Services
 {
     public class ThemeService : IThemeService
@@ -13,15 +16,14 @@ namespace journalApp.Services
         public Task SetTheme(string theme)
         {
             Preferences.Default.Set(THEME_KEY, theme);
-            Console.WriteLine($"=== Theme set to: {theme}");
             return Task.CompletedTask;
         }
 
         public async Task ToggleTheme()
         {
-            var currentTheme = await GetTheme();
-            var newTheme = currentTheme == "light" ? "dark" : "light";
-            await SetTheme(newTheme);
+            var current = await GetTheme();
+            var next = current == "light" ? "dark" : "light";
+            await SetTheme(next);
         }
     }
 }
