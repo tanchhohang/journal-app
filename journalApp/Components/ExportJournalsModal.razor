@@ -1,0 +1,262 @@
+@using journalApp.Models
+@using journalApp.Services
+@inject IEntryService EntryService
+@inject IPdfExportService PdfExportService
+
+@if (isVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-file-earmark-pdf"></i> Export Journals
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Export Range</label>
+                        <select class="form-select" @bind="exportOption">
+                            <option value="all">All Journals</option>
+                            <option value="date-range">Date Range</option>
+                            <option value="last-week">Last 7 Days</option>
+                            <option value="last-month">Last 30 Days</option>
+                            <option value="this-year">This Year</option>
+                        </select>
+                    </div>
+
+                    @if (exportOption == "date-range")
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">From Date</label>
+                                <input type="date" class="form-control" @bind="fromDate" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">To Date</label>
+                                <input type="date" class="form-control" @bind="toDate" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(previewText))
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> {previewText}
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle"></i> {errorMessage}
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> {successMessage}
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="Close" disabled="@isExporting">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="ExportJournals" disabled="@isExporting">
+                        @if (isExporting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Exporting...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-download"></i>
+                            <span>Export</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool isVisible { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string exportOption = "all";
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private bool isExporting = false;
+    private string previewText = "";
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (isVisible)
+        {
+            await UpdatePreview();
+        }
+    }
+
+    private async Task UpdatePreview()
+    {
+        try
+        {
+            var entries = await GetEntriesToExport();
+            if (entries != null && entries.Any())
+            {
+                previewText = $"Ready to export {entries.Count} journal {(entries.Count == 1 ? "entry" : "entries")}";
+            }
+            else
+            {
+                previewText = "No entries found for the selected range";
+            }
+        }
+        catch
+        {
+            previewText = "";
+        }
+    }
+
+    private async Task<List<Entry>?> GetEntriesToExport()
+    {
+        var allEntries = await EntryService.GetAllEntriesAsync();
+        
+        return exportOption switch
+        {
+            "all" => allEntries,
+            "last-week" => allEntries.Where(e => e.Date >= DateTime.Now.AddDays(-7)).ToList(),
+            "last-month" => allEntries.Where(e => e.Date >= DateTime.Now.AddDays(-30)).ToList(),
+            "this-year" => allEntries.Where(e => e.Date.Year == DateTime.Now.Year).ToList(),
+            "date-range" => fromDate.HasValue && toDate.HasValue 
+                ? allEntries.Where(e => e.Date.Date >= fromDate.Value.Date && e.Date.Date <= toDate.Value.Date).ToList()
+                : null,
+            _ => allEntries
+        };
+    }
+
+    private async Task ExportJournals()
+    {
+        try
+        {
+            errorMessage = "";
+            successMessage = "";
+            isExporting = true;
+
+            if (exportOption == "date-range" && (!fromDate.HasValue || !toDate.HasValue))
+            {
+                errorMessage = "Please select both from and to dates";
+                return;
+            }
+
+            if (fromDate.HasValue && toDate.HasValue && fromDate > toDate)
+            {
+                errorMessage = "From date must be before to date";
+                return;
+            }
+
+            var entries = await GetEntriesToExport();
+
+            if (entries == null || !entries.Any())
+            {
+                errorMessage = "No entries found for the selected range";
+                return;
+            }
+
+            DateTime? exportFromDate = null;
+            DateTime? exportToDate = null;
+
+            if (exportOption == "date-range")
+            {
+                exportFromDate = fromDate;
+                exportToDate = toDate;
+            }
+            else if (exportOption == "last-week")
+            {
+                exportFromDate = DateTime.Now.AddDays(-7);
+                exportToDate = DateTime.Now;
+            }
+            else if (exportOption == "last-month")
+            {
+                exportFromDate = DateTime.Now.AddDays(-30);
+                exportToDate = DateTime.Now;
+            }
+            else if (exportOption == "this-year")
+            {
+                exportFromDate = new DateTime(DateTime.Now.Year, 1, 1);
+                exportToDate = DateTime.Now;
+            }
+
+            var filePath = await PdfExportService.ExportMultipleJournalsToPdfAsync(entries, exportFromDate, exportToDate);
+            
+            await OpenFile(filePath);
+
+            successMessage = $"Successfully exported {entries.Count} {(entries.Count == 1 ? "entry" : "entries")}!";
+            
+            // Auto close after 2 seconds
+            await Task.Delay(2000);
+            await Close();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenFile(string filePath)
+    {
+        try
+        {
+#if MACCATALYST || IOS
+            await Launcher.Default.OpenAsync(new OpenFileRequest
+            {
+                File = new ReadOnlyFile(filePath)
+            });
+#elif ANDROID
+            var file = new Java.IO.File(filePath);
+            var uri = AndroidX.Core.Content.FileProvider.GetUriForFile(
+                Android.App.Application.Context,
+                Android.App.Application.Context.PackageName + ".fileprovider",
+                file);
+            
+            var intent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+            intent.SetDataAndType(uri, "text/html");
+            intent.SetFlags(Android.Content.ActivityFlags.GrantReadUriPermission);
+            Android.App.Application.Context.StartActivity(intent);
+#elif WINDOWS
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = filePath,
+                UseShellExecute = true
+            };
+            System.Diagnostics.Process.Start(psi);
+#endif
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error opening file: {ex.Message}");
+        }
+    }
+
+    private async Task Close()
+    {
+        isVisible = false;
+        errorMessage = "";
+        successMessage = "";
+        previewText = "";
+        await OnClose.InvokeAsync();
+    }
+}
