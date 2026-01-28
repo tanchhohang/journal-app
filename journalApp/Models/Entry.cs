@@ -7,6 +7,9 @@ namespace journalApp.Models
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
+        
+        [NotNull]
+        public string UserId { get; set; } = "";
 
         [NotNull]
         public string Title { get; set; } = "";
