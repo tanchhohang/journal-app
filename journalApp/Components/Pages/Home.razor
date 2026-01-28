@@ -2,31 +2,38 @@
 @using journalApp.Models
 @using journalApp.Services
 @using journalApp.Components.Journal
+@using journalApp.Components.Layout
 @inject IEntryService EntryService
 @inject IJSRuntime JS
 
+<<<<<<< Updated upstream
 <div class="page-wrapper">
     <div class="main-content">
         <PageHeader />
+=======
+<div class="main-content">
+    <PageHeader @ref="pageHeaderRef" OnLogout="HandleLogout" />
+>>>>>>> Stashed changes
 
-        <hr style="border-color: #8B898C;" />
+    <hr style="border-color: #8B898C;" />
 
-        <SearchBar SearchText="@searchText" 
-                   SearchTextChanged="HandleSearchChanged"
-                   AvailableTags="@allTags"
-                   OnFilterApplied="HandleFilterApplied" />
+    <SearchBar SearchText="@searchText" 
+               SearchTextChanged="HandleSearchChanged"
+               AvailableTags="@allTags"
+               OnFilterApplied="HandleFilterApplied" />
 
-        @if (isLoading)
-        {
-            <div class="text-center py-5">
-                <div class="spinner-border"></div>
-            </div>
-        }
-        else
-        {
-            <div class="row g-4">
-                <AddJournalCard OnClick="ShowNewEntryForm" />
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border"></div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <AddJournalCard OnClick="ShowNewEntryForm" />
 
+<<<<<<< Updated upstream
                 @foreach (var entry in filteredEntries)
                 {
                     <JournalCard Entry="@entry" OnEdit="EditEntry" OnDelete="DeleteEntry" />
@@ -38,6 +45,24 @@
             </div>
         }
     </div>
+=======
+            @foreach (var entry in PaginatedEntries)
+            {
+                <JournalCard Entry="@entry" OnEdit="EditEntry" OnDelete="DeleteEntry" />
+            }
+        </div>
+
+        <div class="d-flex justify-content-center align-items-center gap-3 mt-4">
+            <button class="btn btn-sm btn-outline-primary" @onclick="PrevPage" disabled="@(_currentPage == 1)">
+                &lt; Prev
+            </button>
+            <span>Page @_currentPage of @_totalPages</span>
+            <button class="btn btn-sm btn-outline-primary" @onclick="NextPage" disabled="@(_currentPage == _totalPages)">
+                Next &gt;
+            </button>
+        </div>
+    }
+>>>>>>> Stashed changes
 </div>
 
 <EntryFormModal 
@@ -60,11 +85,25 @@
     private string searchText = "";
     private bool isLoading = true;
     private string dbPath = "";
+<<<<<<< Updated upstream
+=======
+    private PageHeader? pageHeaderRef;
+
+    [CascadingParameter]
+    public MainLayout? Layout { get; set; }
+
+    private int _currentPage = 1;
+    private int _pageSize = 5;
+    private int _totalPages => (int)Math.Ceiling((double)filteredEntries.Count / _pageSize);
+
+    private IEnumerable<Entry> PaginatedEntries => filteredEntries
+        .Skip((_currentPage - 1) * _pageSize)
+        .Take(_pageSize);
+>>>>>>> Stashed changes
 
     protected override async Task OnInitializedAsync()
     {
         dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db3");
-        Console.WriteLine($"=== Database path: {dbPath}");
         await LoadData();
     }
 
@@ -79,22 +118,32 @@
             entries = await EntryService.GetAllEntriesAsync();
             filteredEntries = entries;
             allTags = await EntryService.GetAllTagsAsync();
+<<<<<<< Updated upstream
             
             Console.WriteLine($"=== Loaded {entries.Count} entries");
             foreach (var entry in entries)
             {
                 Console.WriteLine($"    Entry {entry.Id}: {entry.Title} - {entry.Date:yyyy-MM-dd}");
             }
+=======
+
+            _currentPage = 1;
+>>>>>>> Stashed changes
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"!!! Error loading: {ex.Message}");
+            Console.WriteLine($"Error loading: {ex.Message}");
         }
         finally
         {
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private void HandleLogout()
+    {
+        Layout?.HandleLogout();
     }
 
     private void ShowNewEntryForm()
@@ -165,8 +214,12 @@
         }
         catch (Exception ex)
         {
+<<<<<<< Updated upstream
             Console.WriteLine($"!!! Error saving: {ex.Message}");
             await JS.InvokeVoidAsync("alert", "Error: " + ex.Message);
+=======
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+>>>>>>> Stashed changes
         }
     }
 
@@ -184,7 +237,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"!!! Error deleting: {ex.Message}");
+            Console.WriteLine($"Error deleting: {ex.Message}");
         }
     }
 
@@ -197,6 +250,7 @@
     private async Task HandleSearchChanged(string newSearchText)
     {
         searchText = newSearchText;
+<<<<<<< Updated upstream
         if (string.IsNullOrWhiteSpace(searchText))
         {
             filteredEntries = entries;
@@ -205,6 +259,13 @@
         {
             filteredEntries = await EntryService.SearchEntriesAsync(searchText);
         }
+=======
+        filteredEntries = string.IsNullOrWhiteSpace(searchText) 
+            ? entries 
+            : await EntryService.SearchEntriesAsync(searchText);
+
+        _currentPage = 1;
+>>>>>>> Stashed changes
         StateHasChanged();
     }
 
@@ -221,6 +282,24 @@
         };
 
         filteredEntries = await EntryService.FilterEntriesAsync(serviceCriteria);
+<<<<<<< Updated upstream
         StateHasChanged();
     }
+=======
+        _currentPage = 1;
+        StateHasChanged();
+    }
+
+    private void NextPage()
+    {
+        if (_currentPage < _totalPages)
+            _currentPage++;
+    }
+
+    private void PrevPage()
+    {
+        if (_currentPage > 1)
+            _currentPage--;
+    }
+>>>>>>> Stashed changes
 }

@@ -7,14 +7,15 @@
 
 @if (ShowSetup)
 {
-    <SetupSecurity OnSetupComplete="OnSetupComplete" />
+    <SetupSecurity OnSetupComplete="OnSetupComplete" OnGoToLogin="GoToLogin" />
 }
 else if (IsLocked)
 {
-    <LockScreen OnUnlocked="OnUnlocked" />
+    <LockScreen OnUnlocked="OnUnlocked" OnGoToSignup="GoToSignup" />
 }
 else
 {
+<<<<<<< Updated upstream
     <div class="d-flex">
         <NavMenu />
         <div class="flex-grow-1 main-content-wrapper">
@@ -23,10 +24,31 @@ else
                 <button class="btn btn-sm btn-outline-dark ms-2" @onclick="LockApp">
                     <i class="bi bi-lock"></i> Lock
                 </button>
+=======
+    <CascadingValue Value="this">
+        <div class="app-layout">
+            <NavMenu />
+
+            <div class="page-wrapper">
+                <div class="main-content-wrapper">
+                    <div class="top-bar">
+                        <ThemeToggle />
+                        <button class="btn btn-sm btn-outline-dark ms-2" @onclick="LockApp">
+                            <i class="bi bi-lock"></i> Lock
+                        </button>
+                    </div>
+
+                    @Body
+                </div>
+>>>>>>> Stashed changes
             </div>
             @Body
         </div>
+<<<<<<< Updated upstream
     </div>
+=======
+    </CascadingValue>
+>>>>>>> Stashed changes
 }
 
 <style>
@@ -51,11 +73,14 @@ else
     {
         try
         {
+<<<<<<< Updated upstream
             // Apply theme
             var theme = await ThemeService.GetTheme();
             await ApplyTheme(theme);
 
             // Security check
+=======
+>>>>>>> Stashed changes
             var hasSetup = await SecurityService.HasSecuritySetup();
             
             if (!hasSetup)
@@ -64,6 +89,7 @@ else
             }
             else
             {
+<<<<<<< Updated upstream
                 IsLocked = await SecurityService.IsLocked();
                 
                 if (!IsLocked)
@@ -76,11 +102,33 @@ else
         catch (Exception ex)
         {
             Console.WriteLine($"!!! Error: {ex.Message}");
+=======
+                await SecurityService.LockApp();
+                IsLocked = true;
+            }
+
+            var theme = await ThemeService.GetTheme();
+            await ApplyTheme(theme);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in MainLayout initialization: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var theme = await ThemeService.GetTheme();
+            await ApplyTheme(theme);
+>>>>>>> Stashed changes
         }
     }
 
     private async Task ApplyTheme(string theme)
     {
+<<<<<<< Updated upstream
         await JS.InvokeVoidAsync("eval", $"document.body.className = 'theme-{theme}'");
     }
 
@@ -90,6 +138,18 @@ else
         StateHasChanged();
     }
 
+=======
+        try
+        {
+            await JS.InvokeVoidAsync("setTheme", theme);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error applying theme: {ex.Message}");
+        }
+    }
+
+>>>>>>> Stashed changes
     private async Task OnSetupComplete()
     {
         ShowSetup = false;
@@ -107,6 +167,29 @@ else
     {
         await SecurityService.LockApp();
         IsLocked = true;
+        StateHasChanged();
+    }
+
+    public async Task HandleLogout()
+    {
+        await SecurityService.LogoutAsync();
+        
+        IsLocked = true;
+        ShowSetup = false;
+        StateHasChanged();
+    }
+
+    private void GoToLogin()
+    {
+        ShowSetup = false;
+        IsLocked = true;
+        StateHasChanged();
+    }
+
+    private void GoToSignup()
+    {
+        IsLocked = false;
+        ShowSetup = true;
         StateHasChanged();
     }
 }
