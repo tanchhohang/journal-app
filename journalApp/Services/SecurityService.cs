@@ -31,11 +31,13 @@ namespace journalApp.Services
             {
                 if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(pin))
                 {
+                    Console.WriteLine("Username or PIN is empty");
                     return false;
                 }
 
                 if (pin.Length < 4)
                 {
+                    Console.WriteLine("PIN too short");
                     return false;
                 }
 
@@ -46,13 +48,15 @@ namespace journalApp.Services
                 var users = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, UserData>>(usersJson) 
                     ?? new Dictionary<string, UserData>();
 
-                if (users.ContainsKey(username.ToLower()))
+                var userKey = username.ToLower().Trim();
+                
+                if (users.ContainsKey(userKey))
                 {
                     Console.WriteLine("Username already exists");
                     return false;
                 }
 
-                users[username.ToLower()] = new UserData 
+                users[userKey] = new UserData 
                 { 
                     UserId = userId, 
                     HashedPin = hashedPin,
@@ -61,6 +65,9 @@ namespace journalApp.Services
 
                 var updatedJson = System.Text.Json.JsonSerializer.Serialize(users);
                 Preferences.Default.Set(USERS_KEY, updatedJson);
+
+                Console.WriteLine($"User created: {username}, UserId: {userId}");
+                Console.WriteLine($"Stored users: {updatedJson}");
 
                 Preferences.Default.Set(USERNAME_KEY, username);
                 Preferences.Default.Set(USERID_KEY, userId);
@@ -71,6 +78,7 @@ namespace journalApp.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in SetupSecurity: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
@@ -81,33 +89,48 @@ namespace journalApp.Services
             {
                 if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(pin))
                 {
+                    Console.WriteLine("Username or PIN is empty");
                     return false;
                 }
 
                 var usersJson = Preferences.Default.Get(USERS_KEY, "{}");
+                Console.WriteLine($"Retrieved users JSON: {usersJson}");
+                
                 var users = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, UserData>>(usersJson) 
                     ?? new Dictionary<string, UserData>();
 
-                if (!users.ContainsKey(username.ToLower()))
+                var userKey = username.ToLower().Trim();
+                Console.WriteLine($"Looking for user: {userKey}");
+                Console.WriteLine($"Available users: {string.Join(", ", users.Keys)}");
+
+                if (!users.ContainsKey(userKey))
                 {
+                    Console.WriteLine($"User not found: {userKey}");
                     return false;
                 }
 
-                var userData = users[username.ToLower()];
+                var userData = users[userKey];
                 var inputHash = HashPin(pin);
+
+                Console.WriteLine($"Stored hash: {userData.HashedPin}");
+                Console.WriteLine($"Input hash: {inputHash}");
+                Console.WriteLine($"Hashes match: {userData.HashedPin == inputHash}");
 
                 if (userData.HashedPin == inputHash)
                 {
+                    Console.WriteLine($"Login successful for user: {userData.Username}");
                     Preferences.Default.Set(USERNAME_KEY, userData.Username);
                     Preferences.Default.Set(USERID_KEY, userData.UserId);
                     return true;
                 }
 
+                Console.WriteLine("PIN mismatch");
                 return false;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in LoginAsync: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
@@ -119,6 +142,7 @@ namespace journalApp.Services
                 var currentUsername = Preferences.Default.Get(USERNAME_KEY, string.Empty);
                 if (string.IsNullOrEmpty(currentUsername))
                 {
+                    Console.WriteLine("No current username found");
                     return false;
                 }
 
@@ -126,12 +150,15 @@ namespace journalApp.Services
                 var users = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, UserData>>(usersJson) 
                     ?? new Dictionary<string, UserData>();
 
-                if (!users.ContainsKey(currentUsername.ToLower()))
+                var userKey = currentUsername.ToLower().Trim();
+                
+                if (!users.ContainsKey(userKey))
                 {
+                    Console.WriteLine($"Current user not found in database: {userKey}");
                     return false;
                 }
 
-                var userData = users[currentUsername.ToLower()];
+                var userData = users[userKey];
                 var inputHash = HashPin(pin);
                 return userData.HashedPin == inputHash;
             }

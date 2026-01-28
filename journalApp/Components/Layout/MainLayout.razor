@@ -15,32 +15,24 @@ else if (IsLocked)
 }
 else
 {
-    <div class="d-flex">
-        <NavMenu />
-        <div class="flex-grow-1 main-content-wrapper">
-            <div class="top-bar">
-                <ThemeToggle OnThemeChanged="HandleThemeChanged" />
-                <button class="btn btn-sm btn-outline-dark ms-2" @onclick="LockApp">
-                    <i class="bi bi-lock"></i> Lock
-                </button>
-=======
-    <div class="app-layout">
-        <NavMenu />
+    <CascadingValue Value="this">
+        <div class="app-layout">
+            <NavMenu />
 
-        <div class="page-wrapper">
-            <div class="main-content-wrapper">
-                <div class="top-bar">
-                    <ThemeToggle />
-                    <button class="btn btn-sm btn-outline-dark ms-2" @onclick="LockApp">
-                        <i class="bi bi-lock"></i> Lock
-                    </button>
+            <div class="page-wrapper">
+                <div class="main-content-wrapper">
+                    <div class="top-bar">
+                        <ThemeToggle />
+                        <button class="btn btn-sm btn-outline-dark ms-2" @onclick="LockApp">
+                            <i class="bi bi-lock"></i> Lock
+                        </button>
+                    </div>
+
+                    @Body
                 </div>
-
-                @Body
             </div>
         </div>
-    </div>
-
+    </CascadingValue>
 }
 
 <style>
@@ -65,61 +57,47 @@ else
     {
         try
         {
-            // Apply theme
-            var theme = await ThemeService.GetTheme();
-            await ApplyTheme(theme);
-
-            // Security check
-            // check if security is set up
             var hasSetup = await SecurityService.HasSecuritySetup();
+            
             if (!hasSetup)
             {
-                // force security setup - no skip option
                 ShowSetup = true;
             }
             else
             {
-                IsLocked = await SecurityService.IsLocked();
-                
-                if (!IsLocked)
-                {
-                    await SecurityService.LockApp();
-                    IsLocked = true;
-                }
+                await SecurityService.LockApp();
+                IsLocked = true;
             }
 
-            // apply saved theme
             var theme = await ThemeService.GetTheme();
             await ApplyTheme(theme);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"!!! Error: {ex.Message}");
-
             Console.WriteLine($"Error in MainLayout initialization: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await JS.InvokeVoidAsync("eval", $"document.body.className = 'theme-{theme}'");
+        if (firstRender)
+        {
+            var theme = await ThemeService.GetTheme();
+            await ApplyTheme(theme);
+        }
     }
 
     private async Task ApplyTheme(string theme)
     {
         try
-        {            
-            // use proper JavaScript interop to set the theme class
+        {
             await JS.InvokeVoidAsync("setTheme", theme);
-            
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error applying theme: {ex.Message}");
         }
     }
-
 
     private async Task OnSetupComplete()
     {

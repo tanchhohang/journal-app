@@ -11,7 +11,7 @@ namespace journalApp.Services
 
         public EntryService(ISecurityService securityService)
         {
-
+            _securityService = securityService;
         }
 
         private async Task InitializeDatabaseAsync()
@@ -30,13 +30,37 @@ namespace journalApp.Services
                 _database = new SQLiteAsyncConnection(dbPath);
                 await _database.CreateTableAsync<JournalEntry>();
                 
+                await MigrateExistingEntriesAsync();
             }
             finally
             {
                 _initSemaphore.Release();
             }
         }
-        
+
+        private async Task MigrateExistingEntriesAsync()
+        {
+            try
+            {
+                var entriesWithoutUser = await _database!.Table<JournalEntry>()
+                    .Where(e => e.UserId == null || e.UserId == "")
+                    .ToListAsync();
+
+                if (entriesWithoutUser.Any())
+                {
+                    foreach (var entry in entriesWithoutUser)
+                    {
+                        entry.UserId = "legacy-user";
+                        await _database!.UpdateAsync(entry);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during migration: {ex.Message}");
+            }
+        }
+
         public async Task<List<JournalEntry>> GetAllEntriesAsync()
         {
             await InitializeDatabaseAsync();
@@ -184,7 +208,6 @@ namespace journalApp.Services
                 .Where(e => e.UserId == currentUserId)
                 .ToListAsync();
 
-
             if (!string.IsNullOrWhiteSpace(criteria.SearchText))
             {
                 var searchText = criteria.SearchText.ToLower();
@@ -211,14 +234,10 @@ namespace journalApp.Services
                 };
             }
 
-            // Apply specific mood filter
-
             if (!string.IsNullOrWhiteSpace(criteria.SpecificMood))
             {
                 entries = entries.Where(e => e.Mood == criteria.SpecificMood).ToList();
             }
-
-            // Apply tag filter
 
             if (!string.IsNullOrWhiteSpace(criteria.Tag))
             {
@@ -226,8 +245,6 @@ namespace journalApp.Services
                     .Where(e => e.Tags != null && e.Tags.Contains(criteria.Tag))
                     .ToList();
             }
-
-            // Apply date range filter
 
             if (criteria.FromDate.HasValue)
             {

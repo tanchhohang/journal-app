@@ -1,16 +1,17 @@
-<div class="d-flex justify-content-between align-items-start mb-2">
-    <div>
-        <h1 class="display-5 mb-1 fw-bold fs-1">@CurrentDate.ToString("dd MMMM, yyyy")</h1>
-        <p class="text-muted">@CurrentDate.ToString("dddd")</p>
+@using journalApp.Services
+@inject ISecurityService SecurityService
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+
+<div class="page-header">
+    <div class="header-left">
+        <h1 class="welcome-text">Welcome Back! @Username</h1>
+        <p class="current-date">@DateTime.Now.ToString("dd MMMM, yyyy")</p>
     </div>
     <div class="header-right">
         <StreakDisplay @ref="streakDisplay" />
 
-        <button class="btn btn-link logout-btn"
-                title="Logout"
-                @onclick="Logout">
-            <i class="bi bi-box-arrow-right"></i>
-        </button>
     </div>
 
 </div>
@@ -75,7 +76,9 @@
 </style>
 
 @code {
-    private DateTime CurrentDate => DateTime.Now;
+    private string Username { get; set; } = "User";
+    private StreakDisplay? streakDisplay;
+
     protected override async Task OnInitializedAsync()
     {
         Username = await SecurityService.GetUsername();
@@ -92,12 +95,6 @@
     private async Task Logout()
     {
         bool confirmed = await JS.InvokeAsync<bool>("confirm", "Log out?");
-        
-        if (confirmed)
-        {
-            await OnLogout.InvokeAsync();
-        }
-    }
         if (confirmed)
         {
             await SecurityService.LogoutAsync();
