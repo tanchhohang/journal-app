@@ -2,32 +2,37 @@
 @using journalApp.Models
 @using journalApp.Services
 @using journalApp.Components.Journal
+@using journalApp.Components.Layout
 @inject IEntryService EntryService
 @inject IStreakService StreakService
 @inject IJSRuntime JS
 
+<div class="page-wrapper">
+    <div class="main-content">
+        <PageHeader />
+=======
     <div class="main-content">
         <PageHeader @ref="pageHeaderRef" />
 
-        <hr style="border-color: #8B898C;" />
+    <hr style="border-color: #8B898C;" />
 
-        <SearchBar SearchText="@searchText" 
-                   SearchTextChanged="HandleSearchChanged"
-                   AvailableTags="@allTags"
-                   OnFilterApplied="HandleFilterApplied" />
+    <SearchBar SearchText="@searchText" 
+               SearchTextChanged="HandleSearchChanged"
+               AvailableTags="@allTags"
+               OnFilterApplied="HandleFilterApplied" />
 
-        @if (isLoading)
-        {
-            <div class="text-center py-5">
-                <div class="spinner-border"></div>
-            </div>
-        }
-        else
-        {
-            <div class="row g-4">
-                <AddJournalCard OnClick="ShowNewEntryForm" />
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border"></div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <AddJournalCard OnClick="ShowNewEntryForm" />
 
-                @foreach (var entry in PaginatedEntries)
+                @foreach (var entry in filteredEntries)
                 {
                     <JournalCard Entry="@entry" OnEdit="EditEntry" OnDelete="DeleteEntry" />
                 }
@@ -44,6 +49,7 @@
             </div>
         }
     </div>
+</div>
 
 <EntryFormModal 
     ShowForm="@showForm"
@@ -65,20 +71,16 @@
     private string searchText = "";
     private bool isLoading = true;
     private string dbPath = "";
-    private PageHeader? pageHeaderRef;
-
-    private int _currentPage = 1;
-    private int _pageSize = 6;
     private int _totalPages => (int)Math.Ceiling((double)filteredEntries.Count / _pageSize);
 
     private IEnumerable<Entry> PaginatedEntries => filteredEntries
         .Skip((_currentPage - 1) * _pageSize)
         .Take(_pageSize);
 
+
     protected override async Task OnInitializedAsync()
     {
         dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db3");
-        Console.WriteLine($"=== Database path: {dbPath}");
         await LoadData();
     }
 
@@ -92,18 +94,29 @@
             entries = await EntryService.GetAllEntriesAsync();
             filteredEntries = entries;
             allTags = await EntryService.GetAllTagsAsync();
+            
+            Console.WriteLine($"=== Loaded {entries.Count} entries");
+            foreach (var entry in entries)
+            {
+                Console.WriteLine($"    Entry {entry.Id}: {entry.Title} - {entry.Date:yyyy-MM-dd}");
+            }
 
             _currentPage = 1; // reset to first page on reload
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"!!! Error loading: {ex.Message}");
+            Console.WriteLine($"Error loading: {ex.Message}");
         }
         finally
         {
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private void HandleLogout()
+    {
+        Layout?.HandleLogout();
     }
 
     private void ShowNewEntryForm()
@@ -176,7 +189,9 @@
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"!!! Error saving: {ex.Message}");
             await JS.InvokeVoidAsync("alert", "Error: " + ex.Message);
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
         }
     }
 
@@ -196,7 +211,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"!!! Error deleting: {ex.Message}");
+            Console.WriteLine($"Error deleting: {ex.Message}");
         }
     }
 
@@ -209,10 +224,19 @@
     private async Task HandleSearchChanged(string newSearchText)
     {
         searchText = newSearchText;
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredEntries = entries;
+        }
+        else
+        {
+            filteredEntries = await EntryService.SearchEntriesAsync(searchText);
+        }
         filteredEntries = string.IsNullOrWhiteSpace(searchText) 
             ? entries 
             : await EntryService.SearchEntriesAsync(searchText);
 
+        _currentPage = 1;
         _currentPage = 1; // reset page after search
         StateHasChanged();
     }
@@ -230,7 +254,8 @@
         };
 
         filteredEntries = await EntryService.FilterEntriesAsync(serviceCriteria);
-        _currentPage = 1; // reset page after filter
+        StateHasChanged();
+    }
         StateHasChanged();
     }
 
@@ -245,4 +270,6 @@
         if (_currentPage > 1)
             _currentPage--;
     }
+
+}
 }

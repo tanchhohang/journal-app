@@ -3,9 +3,20 @@
 <div class="lock-screen">
     <div class="lock-container">
         <h2 class="mb-4">Welcome back, @Username</h2>
+        <p class="text-muted mb-4">Enter your PIN to unlock</p>
         <p class="mb-4">Enter your PIN to unlock</p>
+
         
+        <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" 
+                   class="form-control" 
+                   @bind="UsernameInput" 
+                   placeholder="Enter username" />
+        </div>
+
         <div class="pin-input-container mb-3">
+            <label class="form-label">PIN</label>
             <input type="password" 
                    class="form-control text-center pin-input" 
                    @bind="PinInput" 
@@ -17,10 +28,14 @@
 
         @if (!string.IsNullOrEmpty(ErrorMessage))
         {
-            <div class="alert alert-danger py-2">@ErrorMessage</div>
+            <div class="alert alert-danger py-2 mb-3">@ErrorMessage</div>
         }
 
-        <button class="btn btn-dark w-100" @onclick="UnlockApp">Unlock</button>
+        <button class="btn btn-dark w-100 mb-2" @onclick="LoginApp">Login</button>
+        
+        <button class="btn btn-outline-secondary w-100" @onclick="GoToSignup">
+            Don't have an account? Sign Up
+        </button>
     </div>
 </div>
 
@@ -32,16 +47,13 @@
         align-items: center;
         justify-content: center;
         z-index: 9999;
-        transition: background 0.3s;
-    }
-
-    /* Light Theme */
     body.theme-light .lock-screen {
         background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
     }
 
     body.theme-dark .lock-screen {
         background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+
     }
 
     .lock-container {
@@ -50,15 +62,19 @@
         box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         width: 100%;
         max-width: 400px;
-        transition: background 0.3s, color 0.3s;
-    }
-
-    /* Light Theme */
     body.theme-light .lock-container {
         background: #ffffff;
         color: #000000;
     }
 
+    body.theme-dark .lock-container {
+        background: #2d2d2d;
+        color: #ffffff;
+    }
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
     /* Dark Theme */
     body.theme-dark .lock-container {
         background: #2d2d2d;
@@ -79,29 +95,33 @@
 </style>
 
 @code {
+    private string UsernameInput { get; set; } = "";
     private string PinInput { get; set; } = "";
     private string ErrorMessage { get; set; } = "";
-    private string Username { get; set; } = "";
 
     [Parameter]
     public EventCallback OnUnlocked { get; set; }
 
-    protected override async Task OnInitializedAsync()
-    {
-        Username = await SecurityService.GetUsername();
-    }
+    [Parameter]
+    public EventCallback OnGoToSignup { get; set; }
 
     private async Task HandleKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            await UnlockApp();
+            await LoginApp();
         }
     }
 
-    private async Task UnlockApp()
+    private async Task LoginApp()
     {
         ErrorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(UsernameInput))
+        {
+            ErrorMessage = "Please enter your username";
+            return;
+        }
 
         if (string.IsNullOrWhiteSpace(PinInput))
         {
@@ -109,17 +129,22 @@
             return;
         }
 
-        var isValid = await SecurityService.ValidatePin(PinInput);
+        var success = await SecurityService.LoginAsync(UsernameInput, PinInput);
 
-        if (isValid)
+        if (success)
         {
             await SecurityService.UnlockApp();
             await OnUnlocked.InvokeAsync();
         }
         else
         {
-            ErrorMessage = "Incorrect PIN. Please try again.";
+            ErrorMessage = "Invalid username or PIN";
             PinInput = "";
         }
+    }
+
+    private async Task GoToSignup()
+    {
+        await OnGoToSignup.InvokeAsync();
     }
 }

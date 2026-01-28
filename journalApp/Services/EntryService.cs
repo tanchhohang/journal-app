@@ -7,9 +7,11 @@ namespace journalApp.Services
     {
         private SQLiteAsyncConnection? _database;
         private readonly SemaphoreSlim _initSemaphore = new SemaphoreSlim(1, 1);
+        private readonly ISecurityService _securityService;
 
-        public EntryService()
+        public EntryService(ISecurityService securityService)
         {
+
         }
 
         private async Task InitializeDatabaseAsync()
@@ -34,11 +36,19 @@ namespace journalApp.Services
                 _initSemaphore.Release();
             }
         }
-
+        
         public async Task<List<JournalEntry>> GetAllEntriesAsync()
         {
             await InitializeDatabaseAsync();
+            var currentUserId = await _securityService.GetUserId();
+            
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return new List<JournalEntry>();
+            }
+
             return await _database!.Table<JournalEntry>()
+                .Where(e => e.UserId == currentUserId)
                 .OrderByDescending(e => e.Date)
                 .ToListAsync();
         }
@@ -46,19 +56,22 @@ namespace journalApp.Services
         public async Task<JournalEntry?> GetEntryByIdAsync(int id)
         {
             await InitializeDatabaseAsync();
+            var currentUserId = await _securityService.GetUserId();
+            
             return await _database!.Table<JournalEntry>()
-                .Where(e => e.Id == id)
+                .Where(e => e.Id == id && e.UserId == currentUserId)
                 .FirstOrDefaultAsync();
         }
 
         public async Task<JournalEntry?> GetEntryByDateAsync(DateTime date)
         {
             await InitializeDatabaseAsync();
+            var currentUserId = await _securityService.GetUserId();
             var startOfDay = date.Date;
             var endOfDay = date.Date.AddDays(1).AddTicks(-1);
             
             return await _database!.Table<JournalEntry>()
-                .Where(e => e.Date >= startOfDay && e.Date <= endOfDay)
+                .Where(e => e.UserId == currentUserId && e.Date >= startOfDay && e.Date <= endOfDay)
                 .FirstOrDefaultAsync();
         }
 
@@ -71,40 +84,66 @@ namespace journalApp.Services
         public async Task<int> AddEntryAsync(JournalEntry entry)
         {
             await InitializeDatabaseAsync();
+            var currentUserId = await _securityService.GetUserId();
             
-            // check if entry already exists for this date
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                throw new InvalidOperationException("No user logged in");
+            }
+
+            entry.UserId = currentUserId;
+            
             var existingEntry = await GetEntryByDateAsync(entry.Date);
             if (existingEntry != null)
             {
-                throw new InvalidOperationException("An entry already exists for this date.");
+                throw new InvalidOperationException("An entry already exists for this date");
             }
 
             entry.Date = entry.Date.Date;
             var result = await _database!.InsertAsync(entry);
-            Console.WriteLine($"Entry added with ID: {entry.Id}");
             return result;
         }
 
         public async Task<bool> UpdateEntryAsync(JournalEntry entry)
         {
             await InitializeDatabaseAsync();
+            var currentUserId = await _securityService.GetUserId();
+            
+            var existingEntry = await GetEntryByIdAsync(entry.Id);
+            if (existingEntry == null)
+            {
+                return false;
+            }
+
+            entry.UserId = currentUserId;
+            
             var result = await _database!.UpdateAsync(entry);
-            Console.WriteLine($"Entry updated: {entry.Id}");
             return result > 0;
         }
 
         public async Task<bool> DeleteEntryAsync(int id)
         {
             await InitializeDatabaseAsync();
+            
+            var entry = await GetEntryByIdAsync(id);
+            if (entry == null)
+            {
+                return false;
+            }
+
             var result = await _database!.DeleteAsync<JournalEntry>(id);
-            Console.WriteLine($"Entry deleted: {id}");
             return result > 0;
         }
 
         public async Task<List<string>> GetAllTagsAsync()
         {
             await InitializeDatabaseAsync();
-            var entries = await _database!.Table<JournalEntry>().ToListAsync();
+            var currentUserId = await _securityService.GetUserId();
+            
+            var entries = await _database!.Table<JournalEntry>()
+                .Where(e => e.UserId == currentUserId)
+                .ToListAsync();
+                
             var allTags = entries
                 .SelectMany(e => e.Tags ?? new List<string>())
                 .Distinct()
@@ -116,10 +155,15 @@ namespace journalApp.Services
         public async Task<List<JournalEntry>> SearchEntriesAsync(string searchText)
         {
             await InitializeDatabaseAsync();
+            var currentUserId = await _securityService.GetUserId();
+            
             if (string.IsNullOrWhiteSpace(searchText))
                 return await GetAllEntriesAsync();
 
-            var entries = await _database!.Table<JournalEntry>().ToListAsync();
+            var entries = await _database!.Table<JournalEntry>()
+                .Where(e => e.UserId == currentUserId)
+                .ToListAsync();
+                
             searchText = searchText.ToLower();
 
             return entries
@@ -134,9 +178,13 @@ namespace journalApp.Services
         public async Task<List<JournalEntry>> FilterEntriesAsync(FilterCriteria criteria)
         {
             await InitializeDatabaseAsync();
-            var entries = await _database!.Table<JournalEntry>().ToListAsync();
+            var currentUserId = await _securityService.GetUserId();
+            
+            var entries = await _database!.Table<JournalEntry>()
+                .Where(e => e.UserId == currentUserId)
+                .ToListAsync();
 
-            // apply search text filter
+
             if (!string.IsNullOrWhiteSpace(criteria.SearchText))
             {
                 var searchText = criteria.SearchText.ToLower();
@@ -148,7 +196,6 @@ namespace journalApp.Services
                     .ToList();
             }
 
-            // apply mood category filter
             if (!string.IsNullOrWhiteSpace(criteria.MoodCategory))
             {
                 var positive = new[] { "Happy", "Excited", "Relaxed", "Grateful", "Confident" };
@@ -164,13 +211,15 @@ namespace journalApp.Services
                 };
             }
 
-            // apply specific mood filter
+            // Apply specific mood filter
+
             if (!string.IsNullOrWhiteSpace(criteria.SpecificMood))
             {
                 entries = entries.Where(e => e.Mood == criteria.SpecificMood).ToList();
             }
 
-            // apply tag filter
+            // Apply tag filter
+
             if (!string.IsNullOrWhiteSpace(criteria.Tag))
             {
                 entries = entries
@@ -178,7 +227,8 @@ namespace journalApp.Services
                     .ToList();
             }
 
-            // apply date range filter
+            // Apply date range filter
+
             if (criteria.FromDate.HasValue)
             {
                 entries = entries.Where(e => e.Date >= criteria.FromDate.Value.Date).ToList();

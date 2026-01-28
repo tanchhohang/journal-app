@@ -7,14 +7,23 @@
 
 @if (ShowSetup)
 {
-    <SetupSecurity OnSetupComplete="OnSetupComplete" />
+    <SetupSecurity OnSetupComplete="OnSetupComplete" OnGoToLogin="GoToLogin" />
 }
 else if (IsLocked)
 {
-    <LockScreen OnUnlocked="OnUnlocked" />
+    <LockScreen OnUnlocked="OnUnlocked" OnGoToSignup="GoToSignup" />
 }
 else
 {
+    <div class="d-flex">
+        <NavMenu />
+        <div class="flex-grow-1 main-content-wrapper">
+            <div class="top-bar">
+                <ThemeToggle OnThemeChanged="HandleThemeChanged" />
+                <button class="btn btn-sm btn-outline-dark ms-2" @onclick="LockApp">
+                    <i class="bi bi-lock"></i> Lock
+                </button>
+=======
     <div class="app-layout">
         <NavMenu />
 
@@ -56,6 +65,11 @@ else
     {
         try
         {
+            // Apply theme
+            var theme = await ThemeService.GetTheme();
+            await ApplyTheme(theme);
+
+            // Security check
             // check if security is set up
             var hasSetup = await SecurityService.HasSecuritySetup();
             if (!hasSetup)
@@ -65,9 +79,13 @@ else
             }
             else
             {
-                // if security is set up, lock the app
-                await SecurityService.LockApp();
-                IsLocked = true;
+                IsLocked = await SecurityService.IsLocked();
+                
+                if (!IsLocked)
+                {
+                    await SecurityService.LockApp();
+                    IsLocked = true;
+                }
             }
 
             // apply saved theme
@@ -76,6 +94,8 @@ else
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"!!! Error: {ex.Message}");
+
             Console.WriteLine($"Error in MainLayout initialization: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
@@ -83,11 +103,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            var theme = await ThemeService.GetTheme();
-            await ApplyTheme(theme);
-        }
+        await JS.InvokeVoidAsync("eval", $"document.body.className = 'theme-{theme}'");
     }
 
     private async Task ApplyTheme(string theme)
@@ -122,6 +138,29 @@ else
     {
         await SecurityService.LockApp();
         IsLocked = true;
+        StateHasChanged();
+    }
+
+    public async Task HandleLogout()
+    {
+        await SecurityService.LogoutAsync();
+        
+        IsLocked = true;
+        ShowSetup = false;
+        StateHasChanged();
+    }
+
+    private void GoToLogin()
+    {
+        ShowSetup = false;
+        IsLocked = true;
+        StateHasChanged();
+    }
+
+    private void GoToSignup()
+    {
+        IsLocked = false;
+        ShowSetup = true;
         StateHasChanged();
     }
 }

@@ -7,28 +7,16 @@ namespace journalApp.Services
     {
         private const string PIN_KEY = "journal_app_pin";
         private const string USERNAME_KEY = "journal_app_username";
+        private const string USERID_KEY = "journal_app_userid";
         private const string LOCK_STATE_KEY = "app_lock_state";
+        private const string USERS_KEY = "journal_app_users";
 
         public async Task<bool> HasSecuritySetup()
         {
             try
             {
-                try
-                {
-                    var pin = await SecureStorage.Default.GetAsync(PIN_KEY);
-                    if (!string.IsNullOrEmpty(pin))
-                    {
-                        return true;
-                    }
-                }
-                catch
-                {
-                    
-                }
-
-                var prefPin = Preferences.Default.Get(PIN_KEY, string.Empty);
-                var hasPin = !string.IsNullOrEmpty(prefPin);
-                return hasPin;
+                var usersJson = Preferences.Default.Get(USERS_KEY, string.Empty);
+                return !string.IsNullOrEmpty(usersJson);
             }
             catch (Exception ex)
             {
@@ -41,62 +29,85 @@ namespace journalApp.Services
         {
             try
             {
-
                 if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(pin))
                 {
-                    Console.WriteLine("Username or PIN is empty");
                     return false;
                 }
 
                 if (pin.Length < 4)
                 {
-                    Console.WriteLine("PIN too short");
                     return false;
                 }
 
-                // hash the PIN
+                var userId = Guid.NewGuid().ToString();
                 var hashedPin = HashPin(pin);
 
-                bool useSecureStorage = false;
-                try
-                {
-                    try
-                    {
-                        SecureStorage.Default.Remove(PIN_KEY);
-                    }
-                    catch
-                    {
-                    }
+                var usersJson = Preferences.Default.Get(USERS_KEY, "{}");
+                var users = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, UserData>>(usersJson) 
+                    ?? new Dictionary<string, UserData>();
 
-                    await SecureStorage.Default.SetAsync(PIN_KEY, hashedPin);
-                    var test = await SecureStorage.Default.GetAsync(PIN_KEY);
-                    if (!string.IsNullOrEmpty(test))
-                    {
-                        useSecureStorage = true;
-                    }
-                }
-                catch (Exception ex)
+                if (users.ContainsKey(username.ToLower()))
                 {
-                   
-                }
-                
-                if (!useSecureStorage)
-                {
-                    Preferences.Default.Remove(PIN_KEY);
-                    Preferences.Default.Set(PIN_KEY, hashedPin);
+                    Console.WriteLine("Username already exists");
+                    return false;
                 }
 
-                // store username
+                users[username.ToLower()] = new UserData 
+                { 
+                    UserId = userId, 
+                    HashedPin = hashedPin,
+                    Username = username
+                };
+
+                var updatedJson = System.Text.Json.JsonSerializer.Serialize(users);
+                Preferences.Default.Set(USERS_KEY, updatedJson);
+
                 Preferences.Default.Set(USERNAME_KEY, username);
-
-                // set initial state as unlocked
+                Preferences.Default.Set(USERID_KEY, userId);
                 Preferences.Default.Set(LOCK_STATE_KEY, "unlocked");
+                
                 return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in SetupSecurity: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        public async Task<bool> LoginAsync(string username, string pin)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(pin))
+                {
+                    return false;
+                }
+
+                var usersJson = Preferences.Default.Get(USERS_KEY, "{}");
+                var users = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, UserData>>(usersJson) 
+                    ?? new Dictionary<string, UserData>();
+
+                if (!users.ContainsKey(username.ToLower()))
+                {
+                    return false;
+                }
+
+                var userData = users[username.ToLower()];
+                var inputHash = HashPin(pin);
+
+                if (userData.HashedPin == inputHash)
+                {
+                    Preferences.Default.Set(USERNAME_KEY, userData.Username);
+                    Preferences.Default.Set(USERID_KEY, userData.UserId);
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in LoginAsync: {ex.Message}");
                 return false;
             }
         }
@@ -105,33 +116,24 @@ namespace journalApp.Services
         {
             try
             {
-                string storedHash = null;
-                
-                // try SecureStorage first
-                try
+                var currentUsername = Preferences.Default.Get(USERNAME_KEY, string.Empty);
+                if (string.IsNullOrEmpty(currentUsername))
                 {
-                    storedHash = await SecureStorage.Default.GetAsync(PIN_KEY);
-                }
-                catch
-                {
-                    // secureStorage not available
-                }
-
-                // fallback to Preferences if needed
-                if (string.IsNullOrEmpty(storedHash))
-                {
-                    storedHash = Preferences.Default.Get(PIN_KEY, string.Empty);
-                }
-
-                if (string.IsNullOrEmpty(storedHash))
-                {
-                    Console.WriteLine("No stored PIN found");
                     return false;
                 }
 
+                var usersJson = Preferences.Default.Get(USERS_KEY, "{}");
+                var users = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, UserData>>(usersJson) 
+                    ?? new Dictionary<string, UserData>();
+
+                if (!users.ContainsKey(currentUsername.ToLower()))
+                {
+                    return false;
+                }
+
+                var userData = users[currentUsername.ToLower()];
                 var inputHash = HashPin(pin);
-                var isValid = storedHash == inputHash;
-                return isValid;
+                return userData.HashedPin == inputHash;
             }
             catch (Exception ex)
             {
@@ -154,6 +156,20 @@ namespace journalApp.Services
             }
         }
 
+        public Task<string> GetUserId()
+        {
+            try
+            {
+                var userId = Preferences.Default.Get(USERID_KEY, string.Empty);
+                return Task.FromResult(userId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetUserId: {ex.Message}");
+                return Task.FromResult(string.Empty);
+            }
+        }
+
         public async Task<bool> IsLocked()
         {
             try
@@ -171,7 +187,7 @@ namespace journalApp.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in IsLocked: {ex.Message}");
-                return true; // default to locked for security
+                return true;
             }
         }
 
@@ -216,11 +232,24 @@ namespace journalApp.Services
         {
             try
             {
+                Preferences.Default.Remove(USERNAME_KEY);
+                Preferences.Default.Remove(USERID_KEY);
+                Preferences.Default.Set(LOCK_STATE_KEY, "locked");
+                
                 await Task.CompletedTask;
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error during logout: {ex.Message}");
+                throw;
             }
+        }
+
+        private class UserData
+        {
+            public string UserId { get; set; } = "";
+            public string HashedPin { get; set; } = "";
+            public string Username { get; set; } = "";
         }
     }
 }

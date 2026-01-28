@@ -46,7 +46,9 @@
             Setup Security
         </button>
         
-        @* Skip button removed - security is now mandatory *@
+        <button class="btn btn-outline-secondary w-100" @onclick="GoToLogin">
+            Already have an account? Login
+        </button>
     </div>
 </div>
 
@@ -95,13 +97,13 @@
     [Parameter]
     public EventCallback OnSetupComplete { get; set; }
 
+    [Parameter]
+    public EventCallback OnGoToLogin { get; set; }
+
     private void ValidateNumericInput(KeyboardEventArgs e)
     {
-        // Allow only numbers
         if (!char.IsDigit(e.Key[0]) && e.Key != "Backspace" && e.Key != "Delete" && e.Key != "Tab")
         {
-            // Note: In Blazor, we can't prevent default easily in @onkeypress
-            // So we'll validate in the SetupSecurityAsync method
         }
     }
 
@@ -112,7 +114,6 @@
 
         try
         {
-            // Validate username
             if (string.IsNullOrWhiteSpace(Username))
             {
                 ErrorMessage = "Please enter your username";
@@ -125,7 +126,6 @@
                 return;
             }
 
-            // Validate PIN
             if (string.IsNullOrWhiteSpace(Pin))
             {
                 ErrorMessage = "Please enter a PIN";
@@ -144,19 +144,16 @@
                 return;
             }
 
-            // Validate confirmation
             if (Pin != ConfirmPin)
             {
                 ErrorMessage = "PINs do not match";
                 return;
             }
 
-            // Save security settings
             var success = await SecurityService.SetupSecurity(Username, Pin);
 
             if (success)
             {
-                Console.WriteLine("=== Security setup successful");
                 await OnSetupComplete.InvokeAsync();
             }
             else
@@ -166,7 +163,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"!!! Error setting up security: {ex.Message}");
+            Console.WriteLine($"Error setting up security: {ex.Message}");
             ErrorMessage = "An error occurred. Please try again.";
         }
         finally
@@ -174,5 +171,10 @@
             IsProcessing = false;
             StateHasChanged();
         }
+    }
+
+    private async Task GoToLogin()
+    {
+        await OnGoToLogin.InvokeAsync();
     }
 }
