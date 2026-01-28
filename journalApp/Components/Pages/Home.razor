@@ -4,16 +4,15 @@
 @using journalApp.Components.Journal
 @using journalApp.Components.Layout
 @inject IEntryService EntryService
+@inject IStreakService StreakService
 @inject IJSRuntime JS
 
-<<<<<<< Updated upstream
 <div class="page-wrapper">
     <div class="main-content">
         <PageHeader />
 =======
-<div class="main-content">
-    <PageHeader @ref="pageHeaderRef" OnLogout="HandleLogout" />
->>>>>>> Stashed changes
+    <div class="main-content">
+        <PageHeader @ref="pageHeaderRef" />
 
     <hr style="border-color: #8B898C;" />
 
@@ -33,36 +32,23 @@
         <div class="row g-4">
             <AddJournalCard OnClick="ShowNewEntryForm" />
 
-<<<<<<< Updated upstream
                 @foreach (var entry in filteredEntries)
                 {
                     <JournalCard Entry="@entry" OnEdit="EditEntry" OnDelete="DeleteEntry" />
                 }
             </div>
 
-            <div class="text-center mt-4">
-                <button class="btn btn-link text-muted text-decoration-none">Go Next ></button>
+            <div class="d-flex justify-content-center align-items-center gap-3 mt-4">
+                <button class="btn btn-sm btn-outline-primary" @onclick="PrevPage" disabled="@(_currentPage == 1)">
+                    &lt; Prev
+                </button>
+                <span>Page @_currentPage of @_totalPages</span>
+                <button class="btn btn-sm btn-outline-primary" @onclick="NextPage" disabled="@(_currentPage == _totalPages)">
+                    Next &gt;
+                </button>
             </div>
         }
     </div>
-=======
-            @foreach (var entry in PaginatedEntries)
-            {
-                <JournalCard Entry="@entry" OnEdit="EditEntry" OnDelete="DeleteEntry" />
-            }
-        </div>
-
-        <div class="d-flex justify-content-center align-items-center gap-3 mt-4">
-            <button class="btn btn-sm btn-outline-primary" @onclick="PrevPage" disabled="@(_currentPage == 1)">
-                &lt; Prev
-            </button>
-            <span>Page @_currentPage of @_totalPages</span>
-            <button class="btn btn-sm btn-outline-primary" @onclick="NextPage" disabled="@(_currentPage == _totalPages)">
-                Next &gt;
-            </button>
-        </div>
-    }
->>>>>>> Stashed changes
 </div>
 
 <EntryFormModal 
@@ -85,21 +71,12 @@
     private string searchText = "";
     private bool isLoading = true;
     private string dbPath = "";
-<<<<<<< Updated upstream
-=======
-    private PageHeader? pageHeaderRef;
-
-    [CascadingParameter]
-    public MainLayout? Layout { get; set; }
-
-    private int _currentPage = 1;
-    private int _pageSize = 5;
     private int _totalPages => (int)Math.Ceiling((double)filteredEntries.Count / _pageSize);
 
     private IEnumerable<Entry> PaginatedEntries => filteredEntries
         .Skip((_currentPage - 1) * _pageSize)
         .Take(_pageSize);
->>>>>>> Stashed changes
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -114,21 +91,17 @@
             isLoading = true;
             StateHasChanged();
 
-            Console.WriteLine("=== Loading entries from database...");
             entries = await EntryService.GetAllEntriesAsync();
             filteredEntries = entries;
             allTags = await EntryService.GetAllTagsAsync();
-<<<<<<< Updated upstream
             
             Console.WriteLine($"=== Loaded {entries.Count} entries");
             foreach (var entry in entries)
             {
                 Console.WriteLine($"    Entry {entry.Id}: {entry.Title} - {entry.Date:yyyy-MM-dd}");
             }
-=======
 
-            _currentPage = 1;
->>>>>>> Stashed changes
+            _currentPage = 1; // reset to first page on reload
         }
         catch (Exception ex)
         {
@@ -183,9 +156,6 @@
     {
         try
         {
-            Console.WriteLine("=== Saving entry...");
-            
-            // Parse tags
             if (!string.IsNullOrWhiteSpace(tagsText))
             {
                 currentEntry.Tags = tagsText.Split(',')
@@ -200,26 +170,28 @@
 
             if (isNewEntry)
             {
-                var result = await EntryService.AddEntryAsync(currentEntry);
-                Console.WriteLine($"=== Entry added! ID: {currentEntry.Id}");
+                await EntryService.AddEntryAsync(currentEntry);
             }
             else
             {
                 await EntryService.UpdateEntryAsync(currentEntry);
-                Console.WriteLine($"=== Entry updated! ID: {currentEntry.Id}");
             }
 
             await LoadData();
+
+            await StreakService.UpdateStreak();
+            if (pageHeaderRef != null)
+            {
+                await pageHeaderRef.RefreshStreak();
+            }
+
             CloseForm();
         }
         catch (Exception ex)
         {
-<<<<<<< Updated upstream
             Console.WriteLine($"!!! Error saving: {ex.Message}");
             await JS.InvokeVoidAsync("alert", "Error: " + ex.Message);
-=======
             await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
->>>>>>> Stashed changes
         }
     }
 
@@ -231,8 +203,10 @@
             if (confirmed)
             {
                 await EntryService.DeleteEntryAsync(entry.Id);
-                Console.WriteLine($"=== Entry deleted: {entry.Id}");
                 await LoadData();
+                await StreakService.UpdateStreak();
+                if (pageHeaderRef != null)
+                    await pageHeaderRef.RefreshStreak();
             }
         }
         catch (Exception ex)
@@ -250,7 +224,6 @@
     private async Task HandleSearchChanged(string newSearchText)
     {
         searchText = newSearchText;
-<<<<<<< Updated upstream
         if (string.IsNullOrWhiteSpace(searchText))
         {
             filteredEntries = entries;
@@ -259,13 +232,12 @@
         {
             filteredEntries = await EntryService.SearchEntriesAsync(searchText);
         }
-=======
         filteredEntries = string.IsNullOrWhiteSpace(searchText) 
             ? entries 
             : await EntryService.SearchEntriesAsync(searchText);
 
         _currentPage = 1;
->>>>>>> Stashed changes
+        _currentPage = 1; // reset page after search
         StateHasChanged();
     }
 
@@ -282,11 +254,8 @@
         };
 
         filteredEntries = await EntryService.FilterEntriesAsync(serviceCriteria);
-<<<<<<< Updated upstream
         StateHasChanged();
     }
-=======
-        _currentPage = 1;
         StateHasChanged();
     }
 
@@ -301,5 +270,6 @@
         if (_currentPage > 1)
             _currentPage--;
     }
->>>>>>> Stashed changes
+
+}
 }

@@ -1,0 +1,253 @@
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #000;
+    margin: 0;
+}
+
+.dashboard-subtitle {
+    color: #666;
+    margin: 0.5rem 0 0 0;
+}
+
+/* Stat Cards */
+
+.stat-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #555;
+    min-width: 70px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #000;
+    margin: 0;
+}
+
+.stat-label {
+    color: #666;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Analytics Cards */
+
+.analytics-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    height: 100%;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #000;
+}
+
+/* Mood Breakdown */
+
+.mood-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.mood-stat-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.mood-label {
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+}
+
+.mood-label.mood-positive {
+    background: #D4EDDA;
+    color: #155724;
+}
+
+.mood-label.mood-neutral {
+    background: #FFF3CD;
+    color: #856404;
+}
+
+.mood-label.mood-negative {
+    background: #F8D7DA;
+    color: #721C24;
+}
+
+.mood-percentage {
+    font-weight: 600;
+    color: #666;
+}
+
+.progress-bar-container {
+    background: #f0f0f0;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.progress-bar.mood-positive {
+    background: linear-gradient(90deg, #28a745 0%, #5cb85c 100%);
+}
+
+.progress-bar.mood-neutral {
+    background: linear-gradient(90deg, #ffc107 0%, #ffdb4d 100%);
+}
+
+.progress-bar.mood-negative {
+    background: linear-gradient(90deg, #dc3545 0%, #e57373 100%);
+}
+
+/* Frequent Moods */
+
+.frequent-moods {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.frequent-mood-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.mood-name {
+    font-weight: 500;
+}
+
+.mood-count {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Tag Cloud */
+
+.tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.tag-item {
+    background: #e9ecef;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    color: #495057;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.tag-item:hover {
+    background: #dee2e6;
+    transform: scale(1.05);
+}
+
+/* Writing Stats */
+
+.writing-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.writing-stat-item {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.writing-stat-item .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.writing-stat-item .stat-label {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+/* Dark Theme Overrides */
+
+body.theme-dark .dashboard-title,
+body.theme-dark .stat-value,
+body.theme-dark .card-title {
+    color: #ffffff;
+}
+
+body.theme-dark .dashboard-subtitle,
+body.theme-dark .stat-label,
+body.theme-dark .mood-percentage,
+body.theme-dark .mood-count {
+    color: #999999;
+}
+
+body.theme-dark .stat-card,
+body.theme-dark .analytics-card {
+    background: #2d2d2d;
+    border-color: #444;
+}
+
+body.theme-dark .frequent-mood-item,
+body.theme-dark .writing-stat-item {
+    background: #1a1a1a;
+}
+
+body.theme-dark .tag-item {
+    background: #3d3d3d;
+    color: #e0e0e0;
+}
+
+body.theme-dark .tag-item:hover {
+    background: #4d4d4d;
+}
+
+body.theme-dark .progress-bar-container {
+    background: #1a1a1a;
+}

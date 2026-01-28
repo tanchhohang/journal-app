@@ -11,11 +11,7 @@ namespace journalApp.Services
 
         public EntryService(ISecurityService securityService)
         {
-<<<<<<< Updated upstream
-            // Don't use .Wait() in constructor - let each method initialize
-=======
-            _securityService = securityService;
->>>>>>> Stashed changes
+
         }
 
         private async Task InitializeDatabaseAsync()
@@ -30,12 +26,10 @@ namespace journalApp.Services
                     return;
 
                 var dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db3");
-                Console.WriteLine($"Database path: {dbPath}");
                 
                 _database = new SQLiteAsyncConnection(dbPath);
                 await _database.CreateTableAsync<JournalEntry>();
                 
-                Console.WriteLine("Database initialized successfully");
             }
             finally
             {
@@ -99,17 +93,13 @@ namespace journalApp.Services
 
             entry.UserId = currentUserId;
             
-<<<<<<< Updated upstream
-            // Check if entry already exists for this date
-=======
->>>>>>> Stashed changes
             var existingEntry = await GetEntryByDateAsync(entry.Date);
             if (existingEntry != null)
             {
                 throw new InvalidOperationException("An entry already exists for this date");
             }
 
-            entry.Date = entry.Date.Date; // Normalize to start of day
+            entry.Date = entry.Date.Date;
             var result = await _database!.InsertAsync(entry);
             return result;
         }
@@ -194,10 +184,7 @@ namespace journalApp.Services
                 .Where(e => e.UserId == currentUserId)
                 .ToListAsync();
 
-<<<<<<< Updated upstream
-            // Apply search text filter
-=======
->>>>>>> Stashed changes
+
             if (!string.IsNullOrWhiteSpace(criteria.SearchText))
             {
                 var searchText = criteria.SearchText.ToLower();
@@ -209,10 +196,6 @@ namespace journalApp.Services
                     .ToList();
             }
 
-<<<<<<< Updated upstream
-            // Apply mood category filter
-=======
->>>>>>> Stashed changes
             if (!string.IsNullOrWhiteSpace(criteria.MoodCategory))
             {
                 var positive = new[] { "Happy", "Excited", "Relaxed", "Grateful", "Confident" };
@@ -228,19 +211,15 @@ namespace journalApp.Services
                 };
             }
 
-<<<<<<< Updated upstream
             // Apply specific mood filter
-=======
->>>>>>> Stashed changes
+
             if (!string.IsNullOrWhiteSpace(criteria.SpecificMood))
             {
                 entries = entries.Where(e => e.Mood == criteria.SpecificMood).ToList();
             }
 
-<<<<<<< Updated upstream
             // Apply tag filter
-=======
->>>>>>> Stashed changes
+
             if (!string.IsNullOrWhiteSpace(criteria.Tag))
             {
                 entries = entries
@@ -248,10 +227,8 @@ namespace journalApp.Services
                     .ToList();
             }
 
-<<<<<<< Updated upstream
             // Apply date range filter
-=======
->>>>>>> Stashed changes
+
             if (criteria.FromDate.HasValue)
             {
                 entries = entries.Where(e => e.Date >= criteria.FromDate.Value.Date).ToList();
@@ -263,75 +240,6 @@ namespace journalApp.Services
             }
 
             return entries.OrderByDescending(e => e.Date).ToList();
-        }
-
-        public async Task<int> GetCurrentStreakAsync()
-        {
-            await InitializeDatabaseAsync();
-            var entries = await _database!.Table<JournalEntry>()
-                .OrderByDescending(e => e.Date)
-                .ToListAsync();
-
-            if (!entries.Any())
-                return 0;
-
-            var streak = 0;
-            var currentDate = DateTime.Today;
-
-            // Check if there's an entry today or yesterday
-            var latestEntry = entries.First().Date.Date;
-            if ((currentDate - latestEntry).Days > 1)
-                return 0;
-
-            foreach (var entry in entries)
-            {
-                var entryDate = entry.Date.Date;
-                var expectedDate = currentDate.AddDays(-streak);
-
-                if (entryDate == expectedDate)
-                {
-                    streak++;
-                }
-                else if (entryDate < expectedDate)
-                {
-                    break;
-                }
-            }
-
-            return streak;
-        }
-
-        public async Task<int> GetLongestStreakAsync()
-        {
-            await InitializeDatabaseAsync();
-            var entries = await _database!.Table<JournalEntry>()
-                .OrderBy(e => e.Date)
-                .ToListAsync();
-
-            if (!entries.Any())
-                return 0;
-
-            var longestStreak = 1;
-            var currentStreak = 1;
-
-            for (int i = 1; i < entries.Count; i++)
-            {
-                var prevDate = entries[i - 1].Date.Date;
-                var currDate = entries[i].Date.Date;
-                var daysDiff = (currDate - prevDate).Days;
-
-                if (daysDiff == 1)
-                {
-                    currentStreak++;
-                    longestStreak = Math.Max(longestStreak, currentStreak);
-                }
-                else if (daysDiff > 1)
-                {
-                    currentStreak = 1;
-                }
-            }
-
-            return longestStreak;
         }
     }
 }

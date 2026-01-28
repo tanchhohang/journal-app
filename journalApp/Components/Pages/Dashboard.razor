@@ -1,0 +1,239 @@
+@page "/dashboard"
+@using journalApp.Models
+@using journalApp.Services
+@inject IEntryService EntryService
+@inject IStreakService StreakService
+
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">Dashboard</h1>
+        <p class="dashboard-subtitle">Your journaling insights and statistics</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border"></div>
+        </div>
+    }
+    else
+    {
+        <!-- Streak Statistics -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon">Current</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value">@currentStreak</h3>
+                        <p class="stat-label">Current Streak</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon">Best</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value">@longestStreak</h3>
+                        <p class="stat-label">Longest Streak</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon">Entries</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value">@totalEntries</h3>
+                        <p class="stat-label">Total Entries</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mood Distribution -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="analytics-card">
+                    <h3 class="card-title">Mood Distribution</h3>
+                    <div class="mood-breakdown">
+                        <div class="mood-stat">
+                            <div class="mood-stat-header">
+                                <span class="mood-label mood-positive">Positive</span>
+                                <span class="mood-percentage">@GetPercentage(positiveMoodCount)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar mood-positive" style="width: @GetPercentage(positiveMoodCount)"></div>
+                            </div>
+                        </div>
+
+                        <div class="mood-stat">
+                            <div class="mood-stat-header">
+                                <span class="mood-label mood-neutral">Neutral</span>
+                                <span class="mood-percentage">@GetPercentage(neutralMoodCount)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar mood-neutral" style="width: @GetPercentage(neutralMoodCount)"></div>
+                            </div>
+                        </div>
+
+                        <div class="mood-stat">
+                            <div class="mood-stat-header">
+                                <span class="mood-label mood-negative">Negative</span>
+                                <span class="mood-percentage">@GetPercentage(negativeMoodCount)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar mood-negative" style="width: @GetPercentage(negativeMoodCount)"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Frequent Moods -->
+            <div class="col-md-6">
+                <div class="analytics-card">
+                    <h3 class="card-title">Most Frequent Moods</h3>
+                    <div class="frequent-moods">
+                        @foreach (var mood in frequentMoods.Take(5))
+                        {
+                            <div class="frequent-mood-item">
+                                <span class="mood-name">@mood.Key</span>
+                                <span class="mood-count">@mood.Value entries</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tags and Writing Stats -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="analytics-card">
+                    <h3 class="card-title">Most Used Tags</h3>
+                    <div class="tag-cloud">
+                        @foreach (var tag in mostUsedTags.Take(10))
+                        {
+                            <span class="tag-item" style="font-size: @GetTagSize(tag.Value)px">
+                                @tag.Key <small>(@tag.Value)</small>
+                            </span>
+                        }
+                        @if (!mostUsedTags.Any())
+                        {
+                            <p class="text-muted">No tags used yet</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="analytics-card">
+                    <h3 class="card-title">Writing Statistics</h3>
+                    <div class="writing-stats">
+                        <div class="writing-stat-item">
+                            <div>
+                                <p class="stat-value">@averageWordCount</p>
+                                <p class="stat-label">Avg. Words per Entry</p>
+                            </div>
+                        </div>
+                        <div class="writing-stat-item">
+                            <div>
+                                <p class="stat-value">@entriesThisMonth</p>
+                                <p class="stat-label">Entries This Month</p>
+                            </div>
+                        </div>
+                        <div class="writing-stat-item">
+                            <div>
+                                <p class="stat-value">@missedDaysCount</p>
+                                <p class="stat-label">Missed Days (Last 30)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private int currentStreak = 0;
+    private int longestStreak = 0;
+    private int totalEntries = 0;
+    private int positiveMoodCount = 0;
+    private int neutralMoodCount = 0;
+    private int negativeMoodCount = 0;
+    private int entriesThisMonth = 0;
+    private int averageWordCount = 0;
+    private int missedDaysCount = 0;
+    private List<KeyValuePair<string, int>> frequentMoods = new();
+    private List<KeyValuePair<string, int>> mostUsedTags = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var entries = await EntryService.GetAllEntriesAsync();
+            totalEntries = entries.Count;
+
+            currentStreak = await StreakService.GetCurrentStreak();
+            longestStreak = await StreakService.GetLongestStreak();
+
+            var positiveMoods = new[] { "Happy", "Excited", "Grateful", "Peaceful", "Proud", "Loved", "Hopeful" };
+            var negativeMoods = new[] { "Sad", "Angry", "Anxious", "Stressed", "Lonely", "Frustrated", "Scared" };
+
+            positiveMoodCount = entries.Count(e => positiveMoods.Contains(e.Mood));
+            neutralMoodCount = entries.Count(e => !positiveMoods.Contains(e.Mood) && !negativeMoods.Contains(e.Mood));
+            negativeMoodCount = entries.Count(e => negativeMoods.Contains(e.Mood));
+
+            frequentMoods = entries
+                .GroupBy(e => e.Mood)
+                .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
+                .OrderByDescending(x => x.Value)
+                .ToList();
+
+            var allTags = entries
+                .Where(e => e.Tags != null)
+                .SelectMany(e => e.Tags)
+                .ToList();
+
+            mostUsedTags = allTags
+                .GroupBy(t => t)
+                .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
+                .OrderByDescending(x => x.Value)
+                .ToList();
+
+            entriesThisMonth = entries.Count(e => e.Date.Month == DateTime.Now.Month && e.Date.Year == DateTime.Now.Year);
+
+            var totalWords = entries.Sum(e => e.Content?.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length ?? 0);
+            averageWordCount = entries.Any() ? totalWords / entries.Count : 0;
+
+            var missedDays = await StreakService.GetMissedDays(30);
+            missedDaysCount = missedDays.Count;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetPercentage(int count)
+    {
+        if (totalEntries == 0) return "0%";
+        return $"{(count * 100 / totalEntries)}%";
+    }
+
+    private int GetTagSize(int count)
+    {
+        var maxCount = mostUsedTags.Any() ? mostUsedTags.Max(t => t.Value) : 1;
+        return 12 + (int)((count / (double)maxCount) * 8);
+    }
+}
